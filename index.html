@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SantriPay — Sistem Pembayaran Santri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,500;1,8..60,600&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ===========================================================
+   DESIGN TOKENS — SantriPay
+   Subject: pesantren bendahara counter + kwitansi pembayaran.
+   Palette: pesantren hijau tua (amanah/kepercayaan) + emas
+   (kilau kwitansi/uang), kertas krem seperti kwitansi lama.
+   Type: serif untuk identitas dokumen resmi, sans untuk UI,
+   mono untuk nominal/nomor kwitansi (angka harus presisi).
+=========================================================== */
+:root{
+  --ink:        #17281c;
+  --hijau-900:  #123524;
+  --hijau-700:  #1f5c3f;
+  --hijau-600:  #297a52;
+  --hijau-500:  #3a9668;
+  --hijau-100:  #e4f2ea;
+  --hijau-50:   #f2f9f4;
+  --paper:      #faf6ec;
+  --paper-2:    #f2ecda;
+  --line:       #ddd3b8;
+  --gold-600:   #a6791f;
+  --gold-500:   #c99a34;
+  --gold-100:   #f8ecd0;
+  --red-600:    #a83a32;
+  --red-100:    #f7e1de;
+  --white:      #ffffff;
+  --font-ui: "Source Serif 4","Iowan Old Style","Source Serif Pro",ui-serif,Georgia,serif;
+  --font-body: "Inter","Helvetica Neue",Arial,sans-serif;
+  --font-mono: "IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --ease: cubic-bezier(.25,.1,.25,1);
+  --shadow-xs: 0 1px 2px rgba(23,40,28,.06);
+  --shadow-sm: 0 1px 2px rgba(23,40,28,.05), 0 2px 6px rgba(23,40,28,.06);
+  --shadow-md: 0 2px 6px rgba(23,40,28,.06), 0 12px 28px rgba(23,40,28,.10);
+  --shadow-lg: 0 8px 16px rgba(23,40,28,.08), 0 24px 48px rgba(23,40,28,.16);
+}
+
+/* ===== TEMA GELAP ===== */
+body.tema-gelap{
+  --ink:#e6ede8; --hijau-900:#0b1a12; --hijau-700:#134a30; --hijau-600:#1c6b45;
+  --hijau-500:#2f9464; --hijau-100:#173523; --hijau-50:#122a1b;
+  --paper:#0e1712; --paper-2:#182a1f; --line:#2d4335;
+  --gold-600:#d9a83b; --gold-500:#eec468; --gold-100:#2a2110;
+  --red-600:#e0685c; --red-100:#301715; --white:#182a1f;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.3); --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 4px 16px rgba(0,0,0,.5); --shadow-lg:0 12px 32px rgba(0,0,0,.6);
+  background:#0e1712; color:#e6ede8;
+}
+body.tema-gelap .card,body.tema-gelap .kpi-card,body.tema-gelap .modal{background:#182a1f;border-color:#2d4335;}
+body.tema-gelap input,body.tema-gelap select,body.tema-gelap textarea{background:#0e1712;color:#e6ede8;border-color:#2d4335;}
+body.tema-gelap tbody tr:hover{background:#173523;}
+body.tema-gelap .login-card{background:#182a1f;border-color:#2d4335;}
+body.tema-gelap .login-form-wrap h2,body.tema-gelap .login-form-wrap .sub{color:#9fb3a6;}
+body.tema-gelap .jp-tile{background:#182a1f;border-color:#2d4335;}
+body.tema-gelap thead th,body.tema-gelap .kpi-card .label,body.tema-gelap .kpi-card .sub{color:#9fb3a6;}
+
+/* ===== TEMA KLASIK (krem/putih) ===== */
+body.tema-klasik{
+  --ink:#241f12; --hijau-900:#2c2415; --hijau-700:#4a3c1f; --hijau-600:#6b5729;
+  --hijau-500:#8a7238; --hijau-100:#f3ecd8; --hijau-50:#faf6ec;
+  --paper:#fffdf7; --paper-2:#f6f0df; --line:#e6dcb9;
+  --gold-600:#a6791f; --gold-500:#c99a34; --gold-100:#f8ecd0;
+  --red-600:#a83a32; --red-100:#f7e1de; --white:#ffffff;
+  background:#fffdf7; color:#241f12;
+}
+body.tema-klasik .sidebar{background:#2c2415;}
+body.tema-klasik .card,body.tema-klasik .kpi-card{background:#fff;border-color:#e6dcb9;}
+
+/* ===== TEMA BIRU LANGIT ===== */
+body.tema-biru{
+  --ink:#132433; --hijau-900:#0d2b40; --hijau-700:#155378; --hijau-600:#1c74a3;
+  --hijau-500:#2c92c4; --hijau-100:#e2f0f7; --hijau-50:#f2f9fc;
+  --paper:#f7fbfd; --paper-2:#e9f3f8; --line:#cfe2ec;
+  --gold-600:#a6791f; --gold-500:#c99a34; --gold-100:#f8ecd0;
+  --red-600:#a83a32; --red-100:#f7e1de; --white:#ffffff;
+  --shadow-xs:0 1px 2px rgba(13,43,64,.08); --shadow-sm:0 1px 2px rgba(13,43,64,.1); --shadow-md:0 4px 16px rgba(13,43,64,.15); --shadow-lg:0 16px 40px rgba(13,43,64,.2);
+  background:#f7fbfd; color:#132433;
+}
+body.tema-biru .sidebar{background:#0d2b40;}
+body.tema-biru .card,body.tema-biru .kpi-card{background:#fff;border-color:#cfe2ec;}
+body.tema-biru .nav-item.active{background:#c99a34;color:#0d2b40;}
+
+/* ===== Pilih Tema ===== */
+.tema-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+.tema-btn{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  border:2px solid var(--line);border-radius:10px;padding:10px 14px;
+  background:var(--white);cursor:pointer;font-size:12px;font-weight:600;
+  color:var(--ink);transition:border-color .15s,transform .1s;min-width:78px;
+  font-family:var(--font-body);
+}
+.tema-btn:hover{transform:translateY(-2px);}
+.tema-btn.active{border-color:var(--gold-600);box-shadow:0 0 0 3px var(--gold-100);}
+.tema-swatch{width:34px;height:34px;border-radius:50%;border:2px solid rgba(0,0,0,.08);}
+
+/* ===== BASE ===== */
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:var(--font-body);
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  transition:background .2s var(--ease),color .2s var(--ease);
+}
+h1,h2,h3,h4{font-family:var(--font-ui);margin:0;font-weight:600;}
+button{font-family:var(--font-body);cursor:pointer;}
+input,select,textarea{font-family:var(--font-body);}
+.mono{font-family:var(--font-mono);}
+a{color:inherit;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;}
+
+/* ===== LOGIN ===== */
+.login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:
+    radial-gradient(circle at 15% 15%, var(--hijau-100) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, var(--gold-100) 0%, transparent 45%),
+    var(--paper);
+  padding:24px;
+}
+.login-card{
+  display:flex;max-width:820px;width:100%;background:var(--white);
+  border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;
+  box-shadow:var(--shadow-lg);
+}
+.login-brand{
+  flex:1;background:linear-gradient(160deg,var(--hijau-900),var(--hijau-700));
+  color:#f2f9f4;padding:40px 34px;display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;min-width:260px;
+}
+.login-brand::after{
+  content:"";position:absolute;inset:0;opacity:.12;
+  background-image:radial-gradient(circle, #fff 1px, transparent 1.4px);
+  background-size:16px 16px;
+}
+.login-brand .mark{font-family:var(--font-ui);font-size:28px;font-weight:700;position:relative;z-index:1;}
+.login-brand .mark span{color:var(--gold-500);}
+.login-brand .tagline{font-family:var(--font-ui);font-size:19px;line-height:1.5;position:relative;z-index:1;font-style:italic;}
+.login-brand .foot{font-size:12px;opacity:.75;position:relative;z-index:1;}
+.login-form-wrap{flex:1;padding:40px 36px;min-width:280px;}
+.login-form-wrap h2{font-size:24px;margin-bottom:4px;}
+.login-form-wrap .sub{color:var(--hijau-600);font-size:13.5px;margin-bottom:26px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px;color:var(--hijau-700);}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:var(--radius);
+  background:var(--paper);color:var(--ink);font-size:14px;transition:border-color .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--hijau-600);}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 18px;border-radius:var(--radius);border:1.5px solid transparent;
+  font-weight:600;font-size:13.5px;transition:all .15s var(--ease);white-space:nowrap;
+}
+.btn-primary{background:var(--hijau-700);color:#fff;}
+.btn-primary:hover{background:var(--hijau-600);}
+.btn-gold{background:var(--gold-600);color:#fff;}
+.btn-gold:hover{background:var(--gold-500);}
+.btn-outline{background:transparent;border-color:var(--line);color:var(--ink);}
+.btn-outline:hover{border-color:var(--hijau-600);color:var(--hijau-700);}
+.btn-danger{background:transparent;border-color:var(--red-600);color:var(--red-600);}
+.btn-danger:hover{background:var(--red-100);}
+.btn-block{width:100%;}
+.btn-sm{padding:6px 11px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.login-err{background:var(--red-100);color:var(--red-600);padding:9px 12px;border-radius:var(--radius);font-size:12.5px;margin-bottom:14px;}
+.login-hint{margin-top:16px;font-size:11.5px;color:var(--hijau-600);background:var(--hijau-50);padding:10px 12px;border-radius:var(--radius);}
+
+/* ===== APP SHELL ===== */
+.app-shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:230px;background:var(--hijau-900);color:#eef6f0;flex-shrink:0;
+  display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sidebar .brand{font-family:var(--font-ui);font-size:19px;font-weight:700;padding:6px 10px 20px;}
+.sidebar .brand span{color:var(--gold-500);}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
+  background:transparent;border:none;color:#cfe2d5;font-size:13.5px;font-weight:600;
+  text-align:left;width:100%;margin-bottom:3px;transition:background .12s;
+}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff;}
+.nav-item.active{background:var(--gold-600);color:#1c2b1f;}
+.nav-icon{font-size:16px;width:20px;text-align:center;}
+.sidebar-foot{margin-top:auto;padding-top:16px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;color:#a9c2b0;}
+.sidebar-foot .user-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.sidebar-foot .avatar{width:30px;height:30px;border-radius:50%;background:var(--gold-600);color:#1c2b1f;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{
+  padding:16px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  justify-content:space-between;background:var(--white);position:sticky;top:0;z-index:5;
+}
+.topbar h1{font-size:20px;}
+.topbar .sub{font-size:12.5px;color:var(--hijau-600);margin-top:2px;}
+.content{padding:24px 28px;flex:1;}
+
+/* ===== KPI / CARD ===== */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;}
+.kpi-card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow-sm);}
+.kpi-card .label{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--hijau-600);font-weight:700;margin-bottom:6px;}
+.kpi-card .value{font-family:var(--font-mono);font-size:24px;font-weight:700;}
+.kpi-card .sub{font-size:11.5px;color:#8a9690;margin-top:4px;}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:20px;}
+.card-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.card-head h3{font-size:16px;}
+.card-body{padding:18px 20px;}
+
+/* ===== TABLE ===== */
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--hijau-600);border-bottom:1.5px solid var(--line);white-space:nowrap;}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:hover{background:var(--hijau-50);}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-hijau{background:var(--hijau-100);color:var(--hijau-700);}
+.badge-gold{background:var(--gold-100);color:var(--gold-600);}
+.badge-red{background:var(--red-100);color:var(--red-600);}
+.table-empty{padding:30px;text-align:center;color:#8a9690;font-size:13.5px;}
+.actions-cell{display:flex;gap:6px;}
+.icon-btn{background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12.5px;}
+.icon-btn:hover{border-color:var(--hijau-600);}
+.searchbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.searchbar input,.searchbar select{padding:8px 11px;border:1.5px solid var(--line);border-radius:var(--radius);font-size:13px;background:var(--paper);color:var(--ink);}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(18,30,20,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal{background:var(--white);border-radius:var(--radius-lg);max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
+.modal-head h3{font-size:17px;}
+.modal-close{background:transparent;border:none;font-size:20px;color:#8a9690;line-height:1;}
+.modal-body{padding:20px 22px;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:520px){.form-row{grid-template-columns:1fr;}}
+
+/* ===== TOAST ===== */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:80;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:11px 16px;border-radius:var(--radius);font-size:13px;font-weight:600;box-shadow:var(--shadow-md);animation:slideIn .2s var(--ease);}
+.toast-ok{background:var(--hijau-700);color:#fff;}
+.toast-err{background:var(--red-600);color:#fff;}
+@keyframes slideIn{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+/* ===== KASIR ===== */
+.kasir-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start;}
+@media(max-width:980px){.kasir-grid{grid-template-columns:1fr;}}
+.jp-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+.jp-tile{background:var(--white);border:1.5px solid var(--line);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color .12s,transform .1s;}
+.jp-tile:hover{border-color:var(--hijau-600);transform:translateY(-1px);}
+.jp-tile .nm{font-weight:700;font-size:13.5px;margin-bottom:4px;}
+.jp-tile .kat{font-size:11px;color:var(--hijau-600);margin-bottom:8px;}
+.jp-tile .harga{font-family:var(--font-mono);font-weight:700;color:var(--gold-600);font-size:14.5px;}
+.cart-box{background:var(--white);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);position:sticky;top:88px;}
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);gap:8px;}
+.cart-item .nm{font-size:13px;font-weight:600;}
+.cart-item .qty-ctl{display:flex;align-items:center;gap:6px;}
+.qty-ctl button{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:var(--paper);font-weight:700;}
+.cart-total{display:flex;justify-content:space-between;font-family:var(--font-mono);font-weight:700;font-size:17px;padding-top:12px;border-top:2px solid var(--ink);}
+
+/* ===== NOTA / KWITANSI ===== */
+.nota{width:360px;padding:0;font-family:var(--font-mono);font-size:12px;background:#fff;color:#161616;position:relative;border:1px solid #e2e2e2;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.nota .nota-head{background:linear-gradient(160deg,var(--hijau-900),var(--hijau-700));color:#f2f9f4;padding:20px 24px 16px;text-align:center;}
+.nota .nota-logo{width:38px;height:38px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.14);overflow:hidden;}
+.nota .nota-logo img{width:100%;height:100%;object-fit:contain;}
+.nota .nota-logo svg{width:20px;height:20px;}
+.nota h2{font-family:var(--font-ui);font-size:15.5px;font-weight:700;letter-spacing:.01em;margin-bottom:3px;text-transform:uppercase;}
+.nota .nota-sub{font-size:10.5px;opacity:.85;line-height:1.5;font-family:var(--font-body);}
+.nota .nota-body{padding:20px 24px 22px;}
+.nota .nota-eyebrow{font-family:var(--font-body);font-size:9.5px;font-weight:700;letter-spacing:.09em;color:var(--hijau-600);text-transform:uppercase;text-align:center;margin-bottom:10px;}
+.nota .center{text-align:center;}
+.nota hr{border:none;border-top:1px dashed #cfcfcf;margin:12px 0;}
+.nota hr.solid{border-top:1.5px solid #1a1a1a;}
+.nota .row{display:flex;justify-content:space-between;gap:10px;margin-bottom:5px;line-height:1.5;}
+.nota .row span:first-child{color:#6b6b6b;flex-shrink:0;}
+.nota .row span:last-child{text-align:right;font-weight:600;}
+.nota .noNota-highlight{background:var(--hijau-50);border:1px dashed var(--hijau-500);border-radius:7px;padding:9px 12px;text-align:center;margin-bottom:14px;}
+.nota .noNota-highlight .lbl{font-family:var(--font-body);font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--hijau-600);text-transform:uppercase;margin-bottom:3px;}
+.nota .noNota-highlight .val{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--hijau-700);letter-spacing:.02em;}
+.nota .item-row{margin-bottom:8px;}
+.nota .item-row .row span:first-child{color:#161616;font-weight:600;}
+.nota .item-sub{font-family:var(--font-body);font-size:10px;color:#8a9690;margin-top:1px;}
+.nota .total-row{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:16px;padding:10px 0 2px;}
+.nota .total-row span:first-child{font-family:var(--font-body);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#444;font-weight:700;}
+.nota .total-row span:last-child{color:var(--hijau-700);}
+.nota .nota-foot{font-family:var(--font-body);text-align:center;margin-top:14px;color:#444;}
+.nota .nota-foot .thanks{font-weight:700;font-size:11.5px;color:var(--hijau-700);margin-bottom:2px;}
+.nota .nota-foot .doa{font-size:10.5px;font-style:italic;color:#7d8a83;}
+.nota .nota-printed{font-family:var(--font-body);font-size:8.5px;color:#b0b0b0;text-align:center;margin-top:12px;}
+.stamp{
+  position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);
+  border:3px solid var(--red-600);color:var(--red-600);border-radius:10px;
+  padding:6px 18px;font-family:var(--font-ui);font-weight:700;font-size:22px;
+  opacity:.5;letter-spacing:.06em;z-index:1;pointer-events:none;
+}
+
+/* ===== SETTINGS ===== */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:900px){.settings-grid{grid-template-columns:1fr;}}
+
+/* ===== UTIL ===== */
+.flex{display:flex;}
+.gap8{gap:8px;}
+.mb0{margin-bottom:0;}
+.tag-muted{color:#8a9690;font-size:12px;}
+/* ===== MODAL: PERANGKAT BARU / RECEIPT ===== */
+.device-info-box{background:var(--hijau-50);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.65;margin-bottom:18px;color:var(--ink);}
+.device-info-box b{color:var(--hijau-700);}
+.field-label-sm{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--hijau-600);text-transform:uppercase;display:block;margin-bottom:6px;}
+.receipt-modal .modal{max-width:380px;}
+.receipt-modal .modal-body{padding:0;background:#f4f4f4;display:flex;justify-content:center;}
+.receipt-modal .nota{box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.receipt-modal .modal-foot{gap:8px;}
+.receipt-modal .modal-foot .btn{flex:1;padding:10px 6px;font-size:12.5px;}
+/* ===== KARTU SYAHRIYAH ===== */
+.kartu-syahriyah{width:400px;padding:20px 22px;background:#fff;color:#111;font-family:var(--font-body);}
+.ks-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.ks-logo{width:46px;height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;}
+.ks-logo img{width:100%;height:100%;object-fit:contain;}
+.ks-title{flex:1;text-align:center;}
+.ks-kop{font-weight:700;font-size:12.5px;letter-spacing:.02em;}
+.ks-lembaga{font-weight:800;font-size:14px;margin-top:2px;line-height:1.25;}
+.ks-alamat{font-style:italic;font-size:10px;margin-top:3px;color:#333;}
+.kartu-syahriyah hr{border:none;border-top:1.5px solid #111;margin:10px 0 14px;}
+.ks-info{font-size:12.5px;line-height:1.95;margin-bottom:14px;}
+.ks-info b{display:inline-block;min-width:96px;}
+.ks-table{width:100%;border-collapse:collapse;font-size:11.8px;}
+.ks-table th,.ks-table td{border:1px solid #111;padding:4px 7px;text-align:center;}
+.ks-table th{background:#eee;font-weight:700;}
+.ks-semester-head td{background:#e4e4e4;font-weight:800;text-align:left;text-transform:uppercase;font-size:10.5px;letter-spacing:.02em;color:#111;}
+.ks-bulan{text-align:left;color:#1a4fa0;font-weight:600;}
+.ks-stor{text-align:left;color:#1a4fa0;}
+.ks-note{font-size:10px;font-style:italic;margin-top:9px;color:#222;}
+.ks-eparaf{font-weight:700;color:#1f5c3f;font-size:10px;line-height:1.25;}
+.ks-eparaf sup{color:#a6791f;}
+.ks-ttd{text-align:right;font-size:12px;margin-top:28px;font-weight:600;}
+.kartu-modal-body{background:#f4f4f4;display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px;}
+.kartu-modal-body .kartu-controls{display:flex;gap:8px;width:100%;flex-wrap:wrap;}
+.kartu-modal-body .kartu-controls select{flex:1;min-width:120px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--white);color:var(--ink);}
+
+/* ===== MODAL PILIH BULAN (pembayaran bulanan) ===== */
+.bulan-modal-body{padding:18px 22px;}
+.bulan-modal-body .bm-santri{font-size:12.5px;color:var(--hijau-600);font-weight:600;margin-bottom:4px;}
+.bulan-modal-body .bm-jenis{font-weight:700;font-size:15px;margin-bottom:12px;}
+.bulan-year-switch{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;}
+.bulan-year-switch button{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--paper);font-weight:700;}
+.bulan-year-switch .yr{font-family:var(--font-mono);font-weight:700;font-size:15px;min-width:56px;text-align:center;}
+.bulan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.bulan-tile{border:1.5px solid var(--line);border-radius:var(--radius);padding:10px 8px;text-align:center;cursor:pointer;background:var(--white);transition:border-color .12s,transform .1s;user-select:none;}
+.bulan-tile:hover{border-color:var(--hijau-600);}
+.bulan-tile .bm-nm{font-weight:700;font-size:12.5px;margin-bottom:4px;}
+.bulan-tile .bm-harga{font-family:var(--font-mono);font-size:11px;color:var(--hijau-600);}
+.bulan-tile.selected{border-color:var(--hijau-600);background:var(--hijau-50);box-shadow:0 0 0 2px var(--hijau-100);}
+.bulan-tile.selected .bm-nm{color:var(--hijau-700);}
+.bulan-tile.lunas{border-color:var(--gold-500);background:var(--gold-100);cursor:default;}
+.bulan-tile.lunas .bm-nm{color:var(--gold-600);}
+.bulan-tile.lunas .bm-harga{color:var(--gold-600);font-weight:600;}
+.bulan-summary{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--line);font-weight:700;font-family:var(--font-mono);font-size:14px;}
+.bulan-summary .bs-label{font-family:var(--font-body);font-weight:600;font-size:12.5px;color:var(--hijau-600);}
+@media print{
+  body *{visibility:hidden;}
+  #printArea,#printArea *{visibility:visible;}
+  #printArea{position:absolute;top:0;left:0;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+<div id="printArea" style="display:none;"></div>
+<script>
+/* =========================================================
+   SANTRIPAY — state, util, penyimpanan (localStorage)
+========================================================= */
+const LS_PREFIX = 'santripay_';
+function dbGet(key, fallback){
+  try{ const v = localStorage.getItem(LS_PREFIX+key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function dbSet(key, val){
+  try{ localStorage.setItem(LS_PREFIX+key, JSON.stringify(val)); return true; }
+  catch(e){ toast('Gagal menyimpan data: '+e.message,'err'); return false; }
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function formatRupiah(n){
+  n = Number(n)||0;
+  return 'Rp' + n.toLocaleString('id-ID');
+}
+function formatTanggal(iso, withTime){
+  const d = new Date(iso);
+  const opt = {day:'2-digit',month:'short',year:'numeric'};
+  if(withTime){ opt.hour='2-digit'; opt.minute='2-digit'; }
+  return d.toLocaleDateString('id-ID', opt);
+}
+function todayISO(){ return new Date().toISOString(); }
+function localDateStr(d){
+  const x = d ? new Date(d) : new Date();
+  const y = x.getFullYear(), m = String(x.getMonth()+1).padStart(2,'0'), dd = String(x.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+// Menghasilkan nomor struk profesional berformat SP-TTBBTTTT-XXXX
+// (SP-tanggal.bulan.tahun-nomor urut transaksi pada tanggal tsb).
+// Contoh: transaksi ke-3 pada 8 Juli 2026 -> SP-08072026-0003
+function generateNoNota(tanggalISO){
+  const d = new Date(tanggalISO || new Date());
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yyyy = d.getFullYear();
+  const hariIni = localDateStr(d);
+  const urutHariIni = state.transaksi.filter(t => localDateStr(t.tanggal) === hariIni).length + 1;
+  return `SP-${dd}${mm}${yyyy}-${String(urutHariIni).padStart(4,'0')}`;
+}
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let state = {
+  route: 'dashboard',
+  auth: null,
+  users: [],
+  santri: [],
+  guru: [],
+  jenisPembayaran: [],
+  transaksi: [],
+  pengeluaran: [],
+  settings: { namaLembaga:'Pondok Pesantren Al-Hikmah', alamat:'Jl. Pesantren No. 1', telp:'0812-0000-0000', tema:'default',
+    appNamePrefix:'Santri', appNameAccent:'Pay', appTagline:'"Sebaik-baik manusia adalah yang paling bermanfaat bagi manusia lain." Kelola pembayaran santri dengan rapi & amanah.', logoDataUrl:'' },
+  gdrive: { clientId:'', fileId:'', connected:false, lastUploadAt:'', lastUploadOk:false, lastDownloadAt:'', lastDownloadOk:false },
+  uiFlags: {
+    modal: null,
+    cart: [],
+    bulanModal: null,
+    kasirSantriId: '',
+    kasirSearch: '',
+    santriSearch: '',
+    santriFilterKelas: '',
+    santriFilterKategori: '',
+    jpKasirKategori: '',
+    guruSearch: '',
+    jpSearch: '',
+    riwayatFilter: { q:'', dari:'', sampai:'', metode:'' },
+    laporanPeriod: 'bulan',
+    lastTrx: null,
+    receiptModalTrx: null,
+    deviceModalOpen: false,
+    kartuModal: null,
+    pengeluaranForm: { kategori:'Gaji Guru', kategoriLain:'', guruId:'', tanggal:'', keterangan:'', nominal:'' },
+  }
+};
+
+const KATEGORI_PENGELUARAN = ['Gaji Guru','Token Listrik','Kegiatan','Media Belajar','Lainnya'];
+
+function toast(msg, type){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast toast-'+(type==='err'?'err':'ok');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+
+function seedIfEmpty(){
+  if(state.users.length===0){
+    state.users = [
+      {id:uid(), username:'admin', password:'admin123', nama:'Administrator', role:'admin'},
+      {id:uid(), username:'kasir', password:'kasir123', nama:'Bendahara Pondok', role:'kasir'},
+    ];
+    dbSet('users', state.users);
+  }
+  if(state.jenisPembayaran.length===0){
+    state.jenisPembayaran = [
+      {id:uid(), nama:'SPP Bulanan', kategori:'Wajib', kategoriSantri:'Umum', periode:'Bulanan', nominal:250000, keterangan:'Syahriah bulanan santri'},
+      {id:uid(), nama:'Uang Gedung', kategori:'Wajib', kategoriSantri:'Umum', periode:'Sekali', nominal:3500000, keterangan:'Dibayar saat pendaftaran'},
+      {id:uid(), nama:'Uang Makan', kategori:'Wajib', kategoriSantri:'Umum', periode:'Bulanan', nominal:350000, keterangan:'Konsumsi harian santri'},
+      {id:uid(), nama:'Seragam', kategori:'Insidental', kategoriSantri:'Umum', periode:'Sekali', nominal:450000, keterangan:'Seragam sekolah & pondok'},
+      {id:uid(), nama:'Kegiatan Tahunan', kategori:'Wajib', kategoriSantri:'Umum', periode:'Tahunan', nominal:200000, keterangan:'PHBI, rihlah, dll'},
+      {id:uid(), nama:'Infaq Sukarela', kategori:'Sukarela', kategoriSantri:'Umum', periode:'Sekali', nominal:50000, keterangan:'Sumbangan sukarela wali santri'},
+      {id:uid(), nama:'SPP Khusus', kategori:'Wajib', kategoriSantri:'Khusus', periode:'Bulanan', nominal:400000, keterangan:'Syahriah bulanan santri program khusus'},
+      // ===== Kegiatan Semester 1 (Ganjil) — Juli s.d Desember =====
+      {id:uid(), nama:'Ujian Semester 1', kategori:'Wajib', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Ganjil', nominal:150000, keterangan:'Ujian akhir semester ganjil'},
+      {id:uid(), nama:'Infak Kegiatan', kategori:'Sukarela', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Ganjil', nominal:50000, keterangan:'Infak kegiatan semester ganjil'},
+      {id:uid(), nama:'Media Belajar Semester 1', kategori:'Wajib', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Ganjil', nominal:100000, keterangan:'Media belajar semester ganjil'},
+      // ===== Kegiatan Semester 2 (Genap) — Januari s.d Juni =====
+      {id:uid(), nama:'Ujian Semester 2', kategori:'Wajib', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Genap', nominal:150000, keterangan:'Ujian akhir semester genap'},
+      {id:uid(), nama:'Haul Akbar', kategori:'Insidental', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Genap', nominal:75000, keterangan:'Kegiatan Haul Akbar'},
+      {id:uid(), nama:'Media Belajar Semester 2', kategori:'Wajib', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Genap', nominal:100000, keterangan:'Media belajar semester genap'},
+      {id:uid(), nama:'Milad Majelis', kategori:'Insidental', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Genap', nominal:75000, keterangan:'Kegiatan Milad Majelis'},
+      {id:uid(), nama:'Ujian & Akhirussanah', kategori:'Wajib', kategoriSantri:'Umum', periode:'Kegiatan', semester:'Genap', nominal:200000, keterangan:'Ujian akhir tahun & Akhirussanah'},
+    ];
+    dbSet('jenisPembayaran', state.jenisPembayaran);
+  }
+  if(state.santri.length===0){
+    state.santri = [
+      {id:uid(), nis:'2024001', nama:'Ahmad Fauzan', kelas:'VII', asrama:'Al-Furqan', jenisKelamin:'L', waliNama:'Budi Santoso', waliHp:'6281234567890', alamat:'Indramayu', status:'Aktif', kategoriSantri:'Umum'},
+      {id:uid(), nis:'2024002', nama:'Siti Nur Aisyah', kelas:'VIII', asrama:'An-Nisa', jenisKelamin:'P', waliNama:'Hendra Wijaya', waliHp:'6281234567891', alamat:'Cirebon', status:'Aktif', kategoriSantri:'Umum'},
+      {id:uid(), nis:'2024003', nama:'Muhammad Rizki', kelas:'IX', asrama:'Al-Furqan', jenisKelamin:'L', waliNama:'Slamet Riyadi', waliHp:'6281234567892', alamat:'Indramayu', status:'Aktif', kategoriSantri:'Khusus'},
+    ];
+    dbSet('santri', state.santri);
+  }
+  if(state.guru.length===0){
+    state.guru = [
+      {id:uid(), nama:'Ustadz Abdul Karim', jabatan:'Wali Kelas VII / Fiqih', hp:'6281234500001', gajiPokok:1500000},
+      {id:uid(), nama:'Ustadzah Fatimah Zahra', jabatan:'Wali Kelas VIII / Bahasa Arab', hp:'6281234500002', gajiPokok:1500000},
+      {id:uid(), nama:'Ustadz Yusuf Mansur', jabatan:'Kepala Sekolah', hp:'6281234500003', gajiPokok:2000000},
+    ];
+    dbSet('guru', state.guru);
+  }
+}
+
+function loadAll(){
+  state.users = dbGet('users', []);
+  state.santri = dbGet('santri', []);
+  state.guru = dbGet('guru', []);
+  state.jenisPembayaran = dbGet('jenisPembayaran', []);
+  state.transaksi = dbGet('transaksi', []);
+  state.pengeluaran = dbGet('pengeluaran', []);
+  state.settings = {...state.settings, ...dbGet('settings', {})};
+  state.gdrive = dbGet('gdrive', state.gdrive);
+  seedIfEmpty();
+  applyTema(state.settings.tema||'default');
+}
+
+function applyTema(tema){
+  document.body.classList.remove('tema-gelap','tema-klasik','tema-biru');
+  if(tema && tema!=='default') document.body.classList.add('tema-'+tema);
+}
+
+function boot(){
+  loadAll();
+  const savedAuthId = sessionStorage.getItem(LS_PREFIX+'authId');
+  if(savedAuthId){
+    const u = state.users.find(x=>x.id===savedAuthId);
+    if(u) state.auth = u;
+  }
+  if(state.gdrive && state.gdrive.connected) gdriveStartAutoBackup();
+  maybeShowDeviceModal();
+  render();
+}
+
+function maybeShowDeviceModal(){
+  if(state.auth && !state.gdrive.connected && !localStorage.getItem(LS_PREFIX+'deviceSeen')){
+    state.uiFlags.deviceModalOpen = true;
+  }
+}
+
+/* =========================================================
+   RENDER — root
+========================================================= */
+function render(){
+  document.title = `${state.settings.appNamePrefix||'Santri'}${state.settings.appNameAccent||'Pay'} — Sistem Pembayaran Santri`;
+  const app = document.getElementById('app');
+  if(!state.auth){ app.innerHTML = renderLogin(); attachLoginEvents(); return; }
+  const allowedRoutes = NAV.filter(n=> !n.adminOnly || state.auth.role==='admin').map(n=>n.key);
+  if(!allowedRoutes.includes(state.route)) state.route = 'dashboard';
+  app.innerHTML = renderShell();
+  attachShellEvents();
+}
+
+function renderBrandMark(imgMaxHeight){
+  if(state.settings.logoDataUrl){
+    return `<img src="${state.settings.logoDataUrl}" alt="Logo" style="display:block;max-height:${imgMaxHeight}px;max-width:100%;object-fit:contain;">`;
+  }
+  return `${esc(state.settings.appNamePrefix||'Santri')}<span>${esc(state.settings.appNameAccent||'Pay')}</span>`;
+}
+
+function renderLogin(){
+  return `
+  <div class="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="mark">${renderBrandMark(34)}</div>
+        <div class="tagline">${esc(state.settings.appTagline||'')}</div>
+        <div class="foot">${esc(state.settings.namaLembaga)}</div>
+      </div>
+      <div class="login-form-wrap">
+        <h2>Masuk</h2>
+        <div class="sub">Sistem Pengelolaan Pembayaran Santri</div>
+        <div id="loginErrBox"></div>
+        <div class="field"><label>Username</label><input id="loginUser" type="text" placeholder="username" autocomplete="username"></div>
+        <div class="field"><label>Kata Sandi</label><input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+        <button class="btn btn-primary btn-block" id="btnLogin">Masuk</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachLoginEvents(){
+  const doLogin = ()=>{
+    const u = document.getElementById('loginUser').value.trim();
+    const p = document.getElementById('loginPass').value;
+    const found = state.users.find(x=>x.username===u && x.password===p);
+    const errBox = document.getElementById('loginErrBox');
+    if(!found){ errBox.innerHTML = '<div class="login-err">Username atau kata sandi salah.</div>'; return; }
+    state.auth = found;
+    sessionStorage.setItem(LS_PREFIX+'authId', found.id);
+    state.route = 'dashboard';
+    toast('Selamat datang, '+found.nama+'.', 'ok');
+    maybeShowDeviceModal();
+    render();
+  };
+  document.getElementById('btnLogin').addEventListener('click', doLogin);
+  document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+}
+
+const NAV = [
+  {key:'dashboard', label:'Dashboard', icon:'&#127968;'},
+  {key:'kasir', label:'Pembayaran', icon:'&#128179;'},
+  {key:'santri', label:'Data Santri', icon:'&#127891;', adminOnly:true},
+  {key:'guru', label:'Data Guru', icon:'&#128104;&#8205;&#127979;', adminOnly:true},
+  {key:'jenisPembayaran', label:'Jenis Pembayaran', icon:'&#128221;', adminOnly:true},
+  {key:'riwayat', label:'Riwayat Pembayaran', icon:'&#128220;'},
+  {key:'laporan', label:'Laporan', icon:'&#128202;', adminOnly:true},
+  {key:'pengguna', label:'Pengguna', icon:'&#128100;', adminOnly:true},
+  {key:'pengaturan', label:'Pengaturan', icon:'&#9881;', adminOnly:true},
+];
+
+const ROUTE_TITLE = {
+  dashboard:['Dashboard','Ringkasan pembayaran santri hari ini'],
+  kasir:['Pembayaran Santri','Catat pembayaran di loket bendahara'],
+  santri:['Data Santri','Kelola data induk santri'],
+  guru:['Data Guru','Kelola data induk guru & tenaga pengajar'],
+  jenisPembayaran:['Jenis Pembayaran','Kelola jenis & nominal tagihan'],
+  riwayat:['Riwayat Pembayaran','Semua transaksi yang tercatat'],
+  laporan:['Laporan Keuangan','Rekap pemasukan pembayaran santri'],
+  pengguna:['Pengguna','Kelola akun admin & bendahara'],
+  pengaturan:['Pengaturan','Profil lembaga, tema & cadangan data'],
+};
+
+function renderShell(){
+  const nav = NAV.filter(n=> !n.adminOnly || state.auth.role==='admin');
+  const [title, sub] = ROUTE_TITLE[state.route] || ['','',''];
+  const initials = (state.auth.nama||'?').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase();
+  return `
+  <div class="app-shell">
+    <div class="sidebar">
+      <div class="brand">${renderBrandMark(26)}</div>
+      ${nav.map(i=>`<button class="nav-item ${state.route===i.key?'active':''}" data-route="${i.key}"><span class="nav-icon">${i.icon}</span>${i.label}</button>`).join('')}
+      <div class="sidebar-foot">
+        <div class="user-row">
+          <div class="avatar">${initials}</div>
+          <div>
+            <div style="font-weight:700;color:#fff;font-size:13px;">${esc(state.auth.nama)}</div>
+            <div style="font-size:11px;text-transform:capitalize;">${esc(state.auth.role)}</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm btn-block" id="btnLogout" style="border-color:rgba(255,255,255,.25);color:#eef6f0;">Keluar</button>
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div><h1>${title}</h1><div class="sub">${sub}</div></div>
+        <div class="tag-muted mono">${formatTanggal(todayISO(), true)}</div>
+      </div>
+      <div class="content">${renderRoute()}</div>
+    </div>
+  </div>
+  ${state.uiFlags.modal ? renderModal() : ''}
+  ${state.uiFlags.receiptModalTrx ? renderReceiptModal(state.uiFlags.receiptModalTrx) : ''}
+  ${state.uiFlags.kartuModal ? renderKartuModal() : ''}
+  ${state.uiFlags.bulanModal ? renderBulanModal() : ''}
+  ${state.uiFlags.deviceModalOpen ? renderDeviceModal() : ''}`;
+}
+
+/* =========================================================
+   MODAL: PERANGKAT BARU TERDETEKSI (onboarding Google Drive)
+========================================================= */
+function renderDeviceModal(){
+  const appName = `${esc(state.settings.appNamePrefix||'Santri')}${esc(state.settings.appNameAccent||'Pay')}`;
+  return `
+  <div class="modal-overlay" id="deviceModalOverlay">
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-head"><h3>&#128075; Perangkat Baru Terdeteksi</h3><button class="modal-close" id="deviceModalClose">&times;</button></div>
+      <div class="modal-body">
+        <div class="device-info-box">
+          Ini kali pertama <b>${appName}</b> dibuka di perangkat ini. Supaya data (santri, jenis pembayaran, transaksi, pengguna, pengaturan) tetap sinkron dan aman, sambungkan <b>Google Drive</b> sekarang. Jika perangkat lain sudah pernah menyambungkan Drive sebelumnya, gunakan <b>Ambil Data dari Drive</b> setelah tersambung agar data terbaru langsung termuat di perangkat ini.
+        </div>
+        <label class="field-label-sm">Client ID Google Drive</label>
+        <input id="deviceClientId" type="text" placeholder="Tempel Client ID Google Drive di sini" value="${esc(state.gdrive.clientId||'')}" style="width:100%;padding:11px 12px;border:1.5px solid var(--hijau-500);border-radius:8px;background:var(--paper);color:var(--ink);margin-bottom:14px;">
+        <button class="btn btn-primary btn-block" id="deviceConnectBtn">&#128279; Sambungkan Akun Google Drive</button>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="deviceSkipBtn">Lewati, sambungkan nanti</button>
+        <button class="btn btn-gold" id="deviceCloseBtn">Tutup</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function dismissDeviceModal(){
+  localStorage.setItem(LS_PREFIX+'deviceSeen', '1');
+  state.uiFlags.deviceModalOpen = false;
+  render();
+}
+
+/* =========================================================
+   MODAL: STRUK PEMBAYARAN (setelah transaksi tersimpan)
+========================================================= */
+function renderReceiptModal(trx){
+  const s = state.santri.find(x=>x.id===trx.santriId);
+  const waDisabled = !s || !s.waliHp;
+  const bulananItem = trx.items.find(i=> (state.jenisPembayaran.find(j=>j.id===i.jenisId)||{}).periode==='Bulanan');
+  return `
+  <div class="modal-overlay receipt-modal" id="receiptModalOverlay">
+    <div class="modal">
+      <div class="modal-body">${buildNotaHTML(trx)}</div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="receiptCetakBtn">&#128424; Cetak</button>
+        <button class="btn btn-outline" id="receiptWaBtn" ${waDisabled?'disabled title="Nomor HP wali belum tersedia"':''}>&#128172; Kirim via WhatsApp</button>
+        <button class="btn btn-primary" id="receiptSelesaiBtn">Selesai</button>
+      </div>
+      <div class="modal-foot" style="border-top:none;padding-top:0;">
+        <button class="btn btn-gold btn-block btn-sm" id="receiptKartuBtn">&#128220; Cetak / Kirim Buku Santri</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function closeReceiptModal(){
+  state.uiFlags.receiptModalTrx = null;
+  render();
+}
+
+/* =========================================================
+   BUKU SANTRI — buku pembayaran tahun ajaran per santri
+   Digabung dalam SATU buku (tidak terpisah per jenis pembayaran):
+     SEMESTER 1 (Ganjil) : Juli - Desember  -> storan bulanan + Ujian Semester 1, Infak Kegiatan, Media Belajar
+     SEMESTER 2 (Genap)  : Januari - Juni   -> storan bulanan + Ujian Semester 2, Haul Akbar, Media Belajar, Milad Majelis, Ujian & Akhirussanah
+   (dipakai konsisten untuk cetak, laporan keuangan, & kirim WA)
+========================================================= */
+const BULAN_NAMA = ['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
+/* Urutan bulan per semester tahun ajaran: Semester 1 = Jul..Des, Semester 2 = Jan..Jun */
+const SEMESTER1_IDX = [6,7,8,9,10,11];
+const SEMESTER2_IDX = [0,1,2,3,4,5];
+
+function initialsOf(name){
+  return (name||'-').trim().split(/\s+/).map(s=>s[0]).join('').slice(0,3).toUpperCase();
+}
+
+/* Dipakai saat kasir memilih bulan spesifik untuk SATU jenis pembayaran Bulanan di keranjang. */
+function bulanStorData(santriId, jenisId, year){
+  return BULAN_NAMA.map((nm, idx)=>{
+    let stor = 0, tglTerakhir = null, kasirTerakhir = null;
+    state.transaksi.filter(t=>t.santriId===santriId).forEach(t=>{
+      const d = new Date(t.tanggal);
+      t.items.filter(i=>i.jenisId===jenisId).forEach(i=>{
+        let cocok = false;
+        if(Array.isArray(i.bulanTerpilih) && i.bulanTerpilih.length){
+          // Data baru: item menyimpan daftar bulan spesifik yang dibayar (bisa lintas bulan/tahun).
+          if(i.bulanTerpilih.some(b=>b.year===year && b.idx===idx)){ cocok = true; stor += i.nominal; }
+        } else {
+          // Data lama (sebelum fitur daftar bulan): asumsikan bulan pembayaran = bulan transaksi.
+          if(d.getFullYear()===year && d.getMonth()===idx){ cocok = true; stor += i.subtotal; }
+        }
+        if(cocok && (!tglTerakhir || d>tglTerakhir)){ tglTerakhir = d; kasirTerakhir = t.kasirNama || null; }
+      });
+    });
+    return { no: idx+1, nama: nm, stor, tgl: tglTerakhir, kasir: kasirTerakhir };
+  });
+}
+
+/* Daftar nama bulan singkat untuk label keranjang & badge, mis. "Jul 2026". */
+const BULAN_SINGKAT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function labelBulanTerpilih(bulanTerpilih){
+  if(!Array.isArray(bulanTerpilih) || !bulanTerpilih.length) return '';
+  const sorted = [...bulanTerpilih].sort((a,b)=> a.year-b.year || a.idx-b.idx);
+  return sorted.map(b=>`${BULAN_SINGKAT[b.idx]} ${b.year}`).join(', ');
+}
+
+/* Tahun ajaran berjalan (awal), mis. jika sekarang Sept 2026 -> 2026 (TA 2026/2027);
+   jika sekarang Maret 2027 -> 2026 (masih TA 2026/2027, semester genap). */
+function tahunAjaranBerjalan(){
+  const now = new Date();
+  return now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear()-1;
+}
+
+/* Semester berjalan saat ini: Ganjil = Juli..Desember, Genap = Januari..Juni. */
+function semesterBerjalan(){
+  const now = new Date();
+  return now.getMonth() >= 6 ? 'Ganjil' : 'Genap';
+}
+
+/* Total storan bulanan (SEMUA jenis pembayaran periode Bulanan digabung jadi satu baris per bulan). */
+function bukuSantriBulanRow(santriId, year, idx, namaBulan){
+  let stor = 0, tglTerakhir = null, kasirTerakhir = null;
+  state.transaksi.filter(t=>t.santriId===santriId).forEach(t=>{
+    const d = new Date(t.tanggal);
+    t.items.forEach(i=>{
+      const jp = state.jenisPembayaran.find(j=>j.id===i.jenisId);
+      if(!jp || jp.periode!=='Bulanan') return;
+      let cocok = false;
+      if(Array.isArray(i.bulanTerpilih) && i.bulanTerpilih.length){
+        if(i.bulanTerpilih.some(b=>b.year===year && b.idx===idx)){ cocok = true; stor += i.nominal; }
+      } else {
+        if(d.getFullYear()===year && d.getMonth()===idx){ cocok = true; stor += i.subtotal; }
+      }
+      if(cocok && (!tglTerakhir || d>tglTerakhir)){ tglTerakhir = d; kasirTerakhir = t.kasirNama || null; }
+    });
+  });
+  return { nama: namaBulan, stor, tgl: tglTerakhir, kasir: kasirTerakhir };
+}
+
+/* Total pembayaran satu jenis kegiatan semester, dicocokkan berdasarkan tahun ajaran + semester transaksi. */
+function bukuSantriKegiatanRow(santriId, taAwal, semesterKey, jp){
+  let stor = 0, tglTerakhir = null, kasirTerakhir = null;
+  state.transaksi.filter(t=>t.santriId===santriId).forEach(t=>{
+    const d = new Date(t.tanggal);
+    const masukSemester = semesterKey==='Ganjil'
+      ? (d.getFullYear()===taAwal && d.getMonth()>=6)
+      : (d.getFullYear()===taAwal+1 && d.getMonth()<=5);
+    if(!masukSemester) return;
+    t.items.filter(i=>i.jenisId===jp.id).forEach(i=>{
+      stor += i.subtotal;
+      if(!tglTerakhir || d>tglTerakhir){ tglTerakhir = d; kasirTerakhir = t.kasirNama || null; }
+    });
+  });
+  return { nama: jp.nama, stor, tgl: tglTerakhir, kasir: kasirTerakhir };
+}
+
+/* Menyusun buku santri untuk SATU semester saja (terpisah, bukan digabung jadi satu buku utuh).
+   SPP Bulanan otomatis masuk ke semester yang sesuai berdasarkan bulan yang sudah ditentukan:
+   Semester 1 (Ganjil) = Juli..Desember, Semester 2 (Genap) = Januari..Juni. */
+function buildBukuSantriData(santriId, taAwal, semesterKey){
+  semesterKey = (semesterKey==='Genap') ? 'Genap' : 'Ganjil';
+  const monthYear = semesterKey==='Ganjil' ? taAwal : taAwal+1;
+  const monthIdx = semesterKey==='Ganjil' ? SEMESTER1_IDX : SEMESTER2_IDX;
+  const rows = [
+    ...monthIdx.map(idx=>bukuSantriBulanRow(santriId, monthYear, idx, BULAN_NAMA[idx])),
+    ...state.jenisPembayaran.filter(j=>j.periode==='Kegiatan' && j.semester===semesterKey)
+      .map(jp=>bukuSantriKegiatanRow(santriId, taAwal, semesterKey, jp)),
+  ].map((r,i)=>({...r, no:i+1}));
+  return {
+    taAwal, semesterKey,
+    label: semesterKey==='Ganjil' ? 'SEMESTER 1 (GANJIL)' : 'SEMESTER 2 (GENAP)',
+    sub: semesterKey==='Ganjil' ? `Juli s.d Desember ${taAwal}` : `Januari s.d Juni ${taAwal+1}`,
+    rows,
+  };
+}
+
+function buildBukuSantriHTML(santriId, taAwal, semesterKey){
+  const s = state.santri.find(x=>x.id===santriId);
+  const data = buildBukuSantriData(santriId, taAwal, semesterKey);
+  const rowHTML = m=>`
+        <tr>
+          <td>${m.no}</td>
+          <td class="ks-bulan">${esc(m.nama)}</td>
+          <td class="ks-stor">${m.stor ? formatRupiah(m.stor) : 'Rp.'}</td>
+          <td>${m.tgl ? formatTanggal(m.tgl.toISOString()) : ''}</td>
+          <td>${m.kasir ? `<span class="ks-eparaf" title="Diterima oleh ${esc(m.kasir)} (e-paraf)">${esc(m.kasir)}<sup>*</sup></span>` : ''}</td>
+        </tr>`;
+  return `
+  <div class="kartu-syahriyah">
+    <div class="ks-head">
+      <div class="ks-logo">${state.settings.logoDataUrl?`<img src="${state.settings.logoDataUrl}">`:''}</div>
+      <div class="ks-title">
+        <div class="ks-kop">BUKU SANTRI &mdash; TAHUN AJARAN ${taAwal}/${taAwal+1}</div>
+        <div class="ks-lembaga">${esc((state.settings.namaLembaga||'').toUpperCase())}</div>
+        <div class="ks-alamat">Alamat : ${esc(state.settings.alamat||'')}</div>
+      </div>
+      <div class="ks-logo"></div>
+    </div>
+    <hr>
+    <div class="ks-info">
+      <div><b>NAMA SANTRI</b> : ${esc(s?s.nama:'-')}</div>
+      <div><b>NAMA WALI</b> : ${esc(s?s.waliNama:'-')}</div>
+      <div><b>ALAMAT</b> : ${esc(s?s.alamat:'-')}</div>
+      <div><b>HP</b> : ${esc(s?s.waliHp:'-')}</div>
+    </div>
+    <table class="ks-table">
+      <thead><tr><th>NO</th><th>URAIAN</th><th>STOR</th><th>TGL</th><th>PARAF</th></tr></thead>
+      <tbody>
+      <tr class="ks-semester-head"><td colspan="5">${data.label} &mdash; ${data.sub}</td></tr>
+      ${data.rows.map(rowHTML).join('')}
+      </tbody>
+    </table>
+    <div class="ks-note">Nb: *terakhir stor sebelum minggu wage</div>
+    <div class="ks-note">*PARAF menampilkan <b>nama petugas penerima</b> (e-paraf / paraf elektronik), tercatat otomatis oleh sistem sesuai kasir yang memproses pembayaran.</div>
+    <div class="ks-ttd">TTD</div>
+  </div>`;
+}
+
+function buildBukuSantriPDF(santriId, taAwal, semesterKey){
+  if(!window.jspdf || !window.jspdf.jsPDF){ throw new Error('Pustaka PDF belum termuat, coba lagi sesaat lagi.'); }
+  const s = state.santri.find(x=>x.id===santriId);
+  const data = buildBukuSantriData(santriId, taAwal, semesterKey);
+  const { jsPDF } = window.jspdf;
+  const W = 148, M = 10, CX = W/2; // A5 lebar (portrait, mm)
+  const doc = new jsPDF({ unit:'mm', format:'a5' });
+  let y = 12;
+  const center = (t,size,bold)=>{ doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(size); doc.text(String(t), CX, y, {align:'center'}); y+=size/2.2+1; };
+  center(`BUKU SANTRI — TAHUN AJARAN ${taAwal}/${taAwal+1}`, 9.5, true);
+  center((state.settings.namaLembaga||'').toUpperCase(), 11, true);
+  if(state.settings.alamat) center('Alamat : '+state.settings.alamat, 7.5, false);
+  y+=1; doc.setDrawColor(20); doc.setLineWidth(0.4); doc.line(M,y,W-M,y); y+=5;
+
+  doc.setFontSize(8.6); doc.setFont('helvetica','normal');
+  const info = [['NAMA SANTRI', s?s.nama:'-'], ['NAMA WALI', s?s.waliNama:'-'], ['ALAMAT', s?s.alamat:'-'], ['HP', s?s.waliHp:'-']];
+  info.forEach(([l,v])=>{ doc.setFont('helvetica','bold'); doc.text(l, M, y); doc.setFont('helvetica','normal'); doc.text(': '+v, M+24, y); y+=4.6; });
+  y+=2;
+
+  const colX = [M, M+10, M+38, M+66, M+88, W-M];
+  const rowH = 5.4;
+  const truncName = (nm)=> nm.length>22 ? nm.slice(0,21)+'…' : nm;
+  const drawRow = (cells, bold, headerBg)=>{
+    if(headerBg){ doc.setFillColor(238,238,238); doc.rect(M, y, W-2*M, rowH, 'F'); }
+    doc.setDrawColor(20); doc.setLineWidth(0.2);
+    doc.rect(M, y, W-2*M, rowH);
+    for(let i=1;i<colX.length-1;i++){ doc.line(colX[i], y, colX[i], y+rowH); }
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?7.6:7);
+    cells.forEach((c,i)=>{
+      const align = (i===1||i===2) ? 'left' : 'center';
+      const tx = align==='left' ? colX[i]+2 : (colX[i]+colX[i+1])/2;
+      doc.text(String(c), tx, y+rowH/2+1.2, {align});
+    });
+    y += rowH;
+  };
+  const drawSectionHead = (label)=>{
+    doc.setFillColor(228,228,228); doc.rect(M, y, W-2*M, rowH, 'F');
+    doc.setDrawColor(20); doc.setLineWidth(0.2); doc.rect(M, y, W-2*M, rowH);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.2);
+    doc.text(label, M+2, y+rowH/2+1.2);
+    y += rowH;
+  };
+  drawRow(['NO','URAIAN','STOR','TGL','PARAF'], true, true);
+  drawSectionHead(`${data.label} — ${data.sub}`);
+  data.rows.forEach(m=>{
+    drawRow([m.no, m.nama, m.stor?formatRupiah(m.stor):'Rp.', m.tgl?formatTanggal(m.tgl.toISOString()):'', m.kasir?truncName(m.kasir)+'*':''], false, false);
+  });
+  y+=5;
+  doc.setFont('helvetica','italic'); doc.setFontSize(7);
+  doc.text('Nb: *terakhir stor sebelum minggu wage', M, y);
+  y+=3.8;
+  const eparafNote = doc.splitTextToSize('*PARAF menampilkan nama petugas penerima (e-paraf / paraf elektronik), tercatat otomatis oleh sistem sesuai kasir yang memproses pembayaran.', W-2*M);
+  doc.text(eparafNote, M, y);
+  y += eparafNote.length*3.4 + 5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text('TTD', W-M, y, {align:'right'});
+  return doc;
+}
+
+function printBukuSantri(santriId, taAwal, semesterKey){
+  const area = document.getElementById('printArea');
+  area.innerHTML = buildBukuSantriHTML(santriId, taAwal, semesterKey);
+  area.style.display = 'block';
+  window.print();
+  setTimeout(()=>{ area.style.display='none'; area.innerHTML=''; }, 300);
+}
+
+function downloadBukuSantriPDF(santriId, taAwal, semesterKey){
+  try{
+    const s = state.santri.find(x=>x.id===santriId);
+    const doc = buildBukuSantriPDF(santriId, taAwal, semesterKey);
+    const semLabel = semesterKey==='Genap' ? 'Semester2' : 'Semester1';
+    doc.save(`BukuSantri_${(s?s.nis:'santri')}_${taAwal}-${taAwal+1}_${semLabel}.pdf`);
+    return true;
+  }catch(err){ toast('Gagal membuat PDF: '+err.message, 'err'); return false; }
+}
+
+function kirimBukuSantriWA(santriId, taAwal, semesterKey){
+  const s = state.santri.find(x=>x.id===santriId);
+  if(!s || !s.waliHp){ toast('Nomor HP wali santri belum tersedia.', 'err'); return; }
+  const ok = downloadBukuSantriPDF(santriId, taAwal, semesterKey);
+  const data = buildBukuSantriData(santriId, taAwal, semesterKey);
+  const totalSemester = data.rows.reduce((a,m)=>a+m.stor,0);
+  const bagian = `*${data.label}* &mdash; ${data.sub}%0A` + data.rows.map(m=>`- ${m.nama}: ${m.stor?formatRupiah(m.stor):'Belum stor'}`).join('%0A');
+  const msg = `Assalamu'alaikum, berikut Buku Santri Tahun Ajaran ${taAwal}/${taAwal+1} a.n.:%0A%0ANama: ${encodeURIComponent(s.nama)}%0ANIS: ${encodeURIComponent(s.nis)}%0A%0A${bagian}%0A%0ATotal ${data.label}: ${encodeURIComponent(formatRupiah(totalSemester))}%0A%0ATerima kasih, Barakallahu fiikum.`;
+  window.open(`https://wa.me/${s.waliHp.replace(/[^0-9]/g,'')}?text=${msg}`, '_blank');
+  if(ok) toast('Buku Santri PDF terunduh. Lampirkan file tersebut secara manual di chat WhatsApp yang baru terbuka.', 'ok');
+}
+
+function openKartuModal(santriId, taAwal, semester){
+  state.uiFlags.kartuModal = {
+    santriId,
+    taAwal: taAwal!=null ? taAwal : tahunAjaranBerjalan(),
+    semester: (semester==='Genap'||semester==='Ganjil') ? semester : semesterBerjalan(),
+  };
+  render();
+}
+
+function closeKartuModal(){
+  state.uiFlags.kartuModal = null;
+  render();
+}
+
+function renderKartuModal(){
+  const k = state.uiFlags.kartuModal;
+  const s = state.santri.find(x=>x.id===k.santriId);
+  const taNow = tahunAjaranBerjalan();
+  const taOptions = [taNow-1, taNow, taNow+1];
+  const waDisabled = !s || !s.waliHp;
+  return `
+  <div class="modal-overlay receipt-modal" id="kartuModalOverlay">
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-head"><h3>Buku Santri${s?' — '+esc(s.nama):''}</h3><button class="modal-close" id="kartuModalClose">&times;</button></div>
+      <div class="kartu-modal-body">
+        <div class="kartu-controls" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="kartuTahunSelect" style="flex:1;min-width:150px;">
+            ${taOptions.map(y=>`<option value="${y}" ${y===k.taAwal?'selected':''}>Tahun Ajaran ${y}/${y+1}</option>`).join('')}
+          </select>
+          <select id="kartuSemesterSelect" style="flex:1;min-width:150px;">
+            <option value="Ganjil" ${k.semester==='Ganjil'?'selected':''}>Semester 1 (Ganjil)</option>
+            <option value="Genap" ${k.semester==='Genap'?'selected':''}>Semester 2 (Genap)</option>
+          </select>
+        </div>
+        <div class="tag-muted" style="font-size:12px;margin:8px 0 0;">Setiap semester dicetak/diunduh sebagai buku terpisah &mdash; SPP bulanan otomatis masuk ke semester sesuai bulannya.</div>
+        <div id="kartuPreviewArea">${buildBukuSantriHTML(k.santriId, k.taAwal, k.semester)}</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="kartuCetakBtn">&#128424; Cetak</button>
+        <button class="btn btn-outline" id="kartuWaBtn" ${waDisabled?'disabled title="Nomor HP wali belum tersedia"':''}>&#128172; Kirim via WhatsApp</button>
+        <button class="btn btn-primary" id="kartuSelesaiBtn">Selesai</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   MODAL PILIH BULAN — daftar bulan yang akan dibayar
+   (dipakai saat kasir menambahkan jenis pembayaran Bulanan
+   ke keranjang, supaya jelas bulan mana yang dilunasi)
+========================================================= */
+function openBulanModal(jenisId, semesterFilter){
+  const santriId = state.uiFlags.kasirSantriId;
+  if(!santriId){ toast('Pilih santri terlebih dahulu.', 'err'); return; }
+  const existing = state.uiFlags.cart.find(i=>i.jenisId===jenisId);
+  const selected = (existing && Array.isArray(existing.bulanTerpilih)) ? existing.bulanTerpilih.map(b=>({...b})) : [];
+  const semFilter = (semesterFilter==='Ganjil'||semesterFilter==='Genap') ? semesterFilter : '';
+  const taAwal = tahunAjaranBerjalan();
+  const tahunAcuan = semFilter
+    ? (semFilter==='Ganjil' ? taAwal : taAwal+1)
+    : (selected.length ? selected[selected.length-1].year : new Date().getFullYear());
+  state.uiFlags.bulanModal = { jenisId, year: tahunAcuan, selected, semesterFilter: semFilter };
+  render();
+}
+function closeBulanModal(){ state.uiFlags.bulanModal = null; render(); }
+
+function renderBulanModal(){
+  const bm = state.uiFlags.bulanModal;
+  const jp = state.jenisPembayaran.find(j=>j.id===bm.jenisId);
+  const s = state.santri.find(x=>x.id===state.uiFlags.kasirSantriId);
+  const bulanData = bulanStorData(state.uiFlags.kasirSantriId, bm.jenisId, bm.year);
+  const jumlahDipilih = bm.selected.length;
+  const totalDipilih = jumlahDipilih * (jp ? jp.nominal : 0);
+  const isFiltered = bm.semesterFilter==='Ganjil' || bm.semesterFilter==='Genap';
+  const idxList = isFiltered ? (bm.semesterFilter==='Ganjil' ? SEMESTER1_IDX : SEMESTER2_IDX) : [0,1,2,3,4,5,6,7,8,9,10,11];
+  const semesterLabel = bm.semesterFilter==='Ganjil'
+    ? `Semester 1 (Ganjil) &mdash; Juli s.d Desember ${bm.year}`
+    : (bm.semesterFilter==='Genap' ? `Semester 2 (Genap) &mdash; Januari s.d Juni ${bm.year}` : '');
+  return `
+  <div class="modal-overlay receipt-modal" id="bulanModalOverlay">
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-head"><h3>Pilih Bulan yang Dibayar</h3><button class="modal-close" id="bulanModalClose">&times;</button></div>
+      <div class="bulan-modal-body">
+        <div class="bm-santri">${esc(s?s.nama:'-')} ${s?'&bull; '+esc(s.nis):''}</div>
+        <div class="bm-jenis">${esc(jp?jp.nama:'-')} &mdash; ${jp?formatRupiah(jp.nominal):'-'} / bulan</div>
+        ${isFiltered
+          ? `<div class="tag-muted" style="font-size:12.5px;font-weight:600;">${semesterLabel}</div>`
+          : `<div class="bulan-year-switch">
+          <button id="bulanYearPrev">&larr;</button>
+          <span class="yr mono">${bm.year}</span>
+          <button id="bulanYearNext">&rarr;</button>
+        </div>`}
+        <div class="bulan-grid">
+          ${idxList.map(idx=>{
+            const m = bulanData[idx];
+            const lunas = m.stor > 0;
+            const dipilih = bm.selected.some(b=>b.year===bm.year && b.idx===idx);
+            const cls = lunas ? 'lunas' : (dipilih ? 'selected' : '');
+            return `
+            <div class="bulan-tile ${cls}" ${lunas?'':`data-bulan-toggle="${idx}"`} title="${lunas?'Sudah lunas bulan ini':(dipilih?'Klik untuk batalkan pilihan':'Klik untuk pilih bulan ini')}">
+              <div class="bm-nm">${BULAN_SINGKAT[idx]} ${bm.year}</div>
+              <div class="bm-harga">${lunas ? 'Lunas &#10003;' : (dipilih ? 'Dipilih' : formatRupiah(jp?jp.nominal:0))}</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="bulan-summary">
+          <div class="bs-label">${jumlahDipilih} bulan dipilih</div>
+          <div>${formatRupiah(totalDipilih)}</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="bulanModalBatal">Batal</button>
+        <button class="btn btn-gold" id="bulanModalTambah" ${jumlahDipilih===0?'disabled':''}>Tambahkan ke Keranjang</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRoute(){
+  switch(state.route){
+    case 'dashboard': return renderDashboard();
+    case 'kasir': return renderKasir();
+    case 'santri': return renderSantri();
+    case 'guru': return renderGuru();
+    case 'jenisPembayaran': return renderJenisPembayaran();
+    case 'riwayat': return renderRiwayat();
+    case 'laporan': return renderLaporan();
+    case 'pengguna': return renderPengguna();
+    case 'pengaturan': return renderPengaturan();
+    default: return '';
+  }
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+function renderDashboard(){
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const trxToday = state.transaksi.filter(t=> new Date(t.tanggal) >= todayStart);
+  const trxMonth = state.transaksi.filter(t=> new Date(t.tanggal) >= monthStart);
+  const totalToday = trxToday.reduce((s,t)=>s+t.total,0);
+  const totalMonth = trxMonth.reduce((s,t)=>s+t.total,0);
+  const santriAktif = state.santri.filter(s=>s.status==='Aktif').length;
+
+  const rekapJenis = {};
+  trxMonth.forEach(t=> t.items.forEach(it=>{
+    rekapJenis[it.nama] = (rekapJenis[it.nama]||0) + it.subtotal;
+  }));
+  const topJenis = Object.entries(rekapJenis).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxJenis = topJenis.length ? topJenis[0][1] : 1;
+
+  const recent = [...state.transaksi].sort((a,b)=> new Date(b.tanggal)-new Date(a.tanggal)).slice(0,6);
+
+  const isAdmin = state.auth.role === 'admin';
+  const gdriveBanner = `
+  <div class="card" style="margin-bottom:18px;">
+    <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-weight:700;">&#128279; Sinkronisasi Google Drive</div>
+        <div class="tag-muted" style="font-size:12.5px;margin-top:2px;">
+          ${state.gdrive.connected
+            ? `Tersambung${state.gdrive.lastDownloadAt || state.gdrive.lastUploadAt ? ' &bull; Sinkron terakhir: '+formatTanggal(state.gdrive.lastUploadAt && (!state.gdrive.lastDownloadAt || state.gdrive.lastUploadAt > state.gdrive.lastDownloadAt) ? state.gdrive.lastUploadAt : state.gdrive.lastDownloadAt, true) : ' &bull; Belum pernah sinkron'} &mdash; Klik Update untuk memuat data terbaru dari Drive.`
+            : (isAdmin ? 'Belum tersambung. Atur di menu Pengaturan &rarr; Sinkronisasi Google Drive.' : 'Belum tersambung. Hubungi Admin untuk menyambungkan Google Drive di menu Pengaturan.')}
+        </div>
+      </div>
+      <button class="btn btn-gold btn-sm" id="btnUpdateFromDrive" ${!state.gdrive.connected?'disabled title="Google Drive belum tersambung"':''}>&#8681; Update</button>
+    </div>
+  </div>`;
+
+  return gdriveBanner + `
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="label">Santri Aktif</div><div class="value">${santriAktif}</div><div class="sub">dari ${state.santri.length} total santri terdaftar</div></div>
+    <div class="kpi-card"><div class="label">Pembayaran Hari Ini</div><div class="value">${formatRupiah(totalToday)}</div><div class="sub">${trxToday.length} transaksi</div></div>
+    <div class="kpi-card"><div class="label">Pembayaran Bulan Ini</div><div class="value">${formatRupiah(totalMonth)}</div><div class="sub">${trxMonth.length} transaksi</div></div>
+    <div class="kpi-card"><div class="label">Jenis Pembayaran</div><div class="value">${state.jenisPembayaran.length}</div><div class="sub">jenis tagihan aktif</div></div>
+  </div>
+  <div class="kasir-grid">
+    <div class="card">
+      <div class="card-head"><h3>Transaksi Terbaru</h3><button class="btn btn-outline btn-sm" data-route="riwayat">Lihat semua</button></div>
+      <div class="card-body" style="padding:0;">
+        <table>
+          <thead><tr><th>Tanggal</th><th>Santri</th><th>Total</th><th>Metode</th></tr></thead>
+          <tbody>
+          ${recent.length? recent.map(t=>{
+            const s = state.santri.find(x=>x.id===t.santriId);
+            return `<tr><td>${formatTanggal(t.tanggal)}</td><td>${esc(s?s.nama:'-')}</td><td class="mono">${formatRupiah(t.total)}</td><td><span class="badge badge-hijau">${esc(t.metode)}</span></td></tr>`;
+          }).join('') : `<tr><td colspan="4" class="table-empty">Belum ada transaksi pembayaran.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Rekap Jenis Pembayaran (Bulan Ini)</h3></div>
+      <div class="card-body">
+        ${topJenis.length ? topJenis.map(([nm,val])=>`
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;">
+              <span>${esc(nm)}</span><span class="mono" style="font-weight:700;">${formatRupiah(val)}</span>
+            </div>
+            <div style="background:var(--paper-2);border-radius:6px;height:8px;overflow:hidden;">
+              <div style="background:var(--gold-600);height:100%;width:${Math.max(4,Math.round(val/maxJenis*100))}%;"></div>
+            </div>
+          </div>`).join('') : '<div class="table-empty">Belum ada data.</div>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   KASIR (Pembayaran)
+========================================================= */
+function renderKasir(){
+  const q = (state.uiFlags.kasirSearch||'').toLowerCase();
+  const santriList = state.santri.filter(s=>s.status==='Aktif' && (
+    !q || s.nama.toLowerCase().includes(q) || s.nis.toLowerCase().includes(q)
+  ));
+  const jpQ = (state.uiFlags.jpKasirSearch||'').toLowerCase();
+  const jpSemFilter = state.uiFlags.jpKasirSemester||'';
+  const jpKatFilter = state.uiFlags.jpKasirKategori||'';
+  const jpList = state.jenisPembayaran
+    .filter(j=> !jpQ || j.nama.toLowerCase().includes(jpQ))
+    .filter(j=> !jpSemFilter || j.semester===jpSemFilter || j.periode==='Bulanan')
+    .filter(j=> !jpKatFilter || (j.kategoriSantri||'Umum')===jpKatFilter)
+    .sort((a,b)=>{
+      const semOrder = s => s==='Ganjil'?0 : s==='Genap'?1 : 2;
+      const d = semOrder(a.semester) - semOrder(b.semester);
+      return d!==0 ? d : a.nama.localeCompare(b.nama);
+    });
+  const cart = state.uiFlags.cart;
+  const total = cart.reduce((s,i)=>s+i.nominal*i.qty,0);
+  const santriTerpilih = state.santri.find(s=>s.id===state.uiFlags.kasirSantriId);
+  const lastTrx = state.uiFlags.lastTrx;
+  const lastTrxSantri = lastTrx ? state.santri.find(s=>s.id===lastTrx.santriId) : null;
+
+  const kasirSyncBanner = `
+  <div class="card" style="margin-bottom:18px;">
+    <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-weight:700;">&#128279; Data Kasir</div>
+        <div class="tag-muted" style="font-size:12.5px;margin-top:2px;">
+          ${state.gdrive.connected
+            ? `Tersambung ke Google Drive${state.gdrive.lastDownloadAt || state.gdrive.lastUploadAt ? ' &bull; Sinkron terakhir: '+formatTanggal(state.gdrive.lastUploadAt && (!state.gdrive.lastDownloadAt || state.gdrive.lastUploadAt > state.gdrive.lastDownloadAt) ? state.gdrive.lastUploadAt : state.gdrive.lastDownloadAt, true) : ' &bull; Belum pernah sinkron'}`
+            : (state.auth.role==='admin' ? 'Google Drive belum tersambung. Atur di menu Pengaturan.' : 'Google Drive belum tersambung. Hubungi Admin untuk menyambungkannya di menu Pengaturan.')}
+          &mdash; Klik Update untuk memuat data santri &amp; jenis pembayaran terbaru sebelum bertransaksi.
+        </div>
+      </div>
+      <button class="btn btn-gold btn-sm" id="btnKasirUpdate" ${!state.gdrive.connected?'disabled title="Google Drive belum tersambung"':''}>&#8681; Update</button>
+    </div>
+  </div>`;
+
+  const lastTrxPanel = lastTrx ? `
+  <div class="card" style="margin-bottom:18px;border-color:var(--hijau-500);">
+    <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-weight:700;color:var(--hijau-700);">&#10003; Pembayaran tersimpan &mdash; ${esc(lastTrx.noNota)}</div>
+        <div class="tag-muted" style="font-size:12.5px;margin-top:2px;">${esc(lastTrxSantri?lastTrxSantri.nama:'-')} &bull; ${formatRupiah(lastTrx.total)} &bull; ${esc(lastTrx.metode)}</div>
+      </div>
+      <div class="flex gap8" style="flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" id="btnLastTrxCetak">Cetak Struk</button>
+        <button class="btn btn-outline btn-sm" id="btnLastTrxPdf">Unduh PDF</button>
+        <button class="btn btn-gold btn-sm" id="btnLastTrxWa" ${(!lastTrxSantri||!lastTrxSantri.waliHp)?'disabled title="Nomor HP wali belum tersedia"':''}>&#128241; Kirim WhatsApp</button>
+      </div>
+    </div>
+  </div>` : '';
+
+  return kasirSyncBanner + lastTrxPanel + `
+  <div class="kasir-grid">
+    <div>
+      <div class="card">
+        <div class="card-head"><h3>1. Pilih Santri</h3></div>
+        <div class="card-body">
+          <input type="text" placeholder="Cari nama atau NIS santri..." id="kasirSearchSantri" value="${esc(state.uiFlags.kasirSearch||'')}" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:12px;background:var(--paper);color:var(--ink);">
+          <select id="kasirSelectSantri" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+            <option value="">— pilih santri —</option>
+            ${santriList.map(s=>`<option value="${s.id}" ${s.id===state.uiFlags.kasirSantriId?'selected':''}>${esc(s.nama)} — ${esc(s.nis)} (Kelas ${esc(s.kelas)})</option>`).join('')}
+          </select>
+          ${santriTerpilih ? `<div class="tag-muted" style="margin-top:8px;">Asrama ${esc(santriTerpilih.asrama)} · Kategori: <span class="badge ${(santriTerpilih.kategoriSantri||'Umum')==='Khusus'?'badge-gold':'badge-hijau'}" style="padding:1px 8px;">${esc(santriTerpilih.kategoriSantri||'Umum')}</span> · Wali: ${esc(santriTerpilih.waliNama)} · ${esc(santriTerpilih.waliHp)}</div>` : ''}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>2. Pilih Jenis Pembayaran</h3></div>
+        <div class="card-body">
+          <input type="text" placeholder="Cari jenis pembayaran..." id="kasirSearchJP" value="${esc(state.uiFlags.jpKasirSearch||'')}" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;background:var(--paper);color:var(--ink);">
+          <div class="form-row" style="margin-bottom:12px;">
+            <select id="kasirFilterJPSemester" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+              <option value="" ${!jpSemFilter?'selected':''}>Semua Semester</option>
+              <option value="Ganjil" ${jpSemFilter==='Ganjil'?'selected':''}>Semester 1 (Ganjil)</option>
+              <option value="Genap" ${jpSemFilter==='Genap'?'selected':''}>Semester 2 (Genap)</option>
+            </select>
+            <select id="kasirFilterJPKategori" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+              <option value="" ${!jpKatFilter?'selected':''}>Semua Kategori Santri</option>
+              <option value="Umum" ${jpKatFilter==='Umum'?'selected':''}>Umum</option>
+              <option value="Khusus" ${jpKatFilter==='Khusus'?'selected':''}>Khusus</option>
+            </select>
+          </div>
+          <div class="jp-tiles">
+            ${jpList.length ? jpList.map(j=>`
+              <div class="jp-tile" ${j.periode==='Bulanan' ? `data-pilih-bulan="${j.id}" data-sem-filter="${jpSemFilter}"` : `data-add-cart="${j.id}"`}>
+                <div class="nm">${esc(j.nama)}</div>
+                <div class="kat">${esc(j.kategori)} · <span title="Kategori Santri">${esc(j.kategoriSantri||'Umum')}</span> · ${esc(j.periode)}${j.periode==='Bulanan'?(jpSemFilter?` &bull; ${jpSemFilter==='Ganjil'?'Semester 1':'Semester 2'}`:' &bull; pilih bulan'):''}${j.periode==='Kegiatan'?` &bull; ${j.semester==='Genap'?'Semester 2':'Semester 1'}`:''}</div>
+                <div class="harga">${formatRupiah(j.nominal)}</div>
+              </div>`).join('') : '<div class="table-empty">Belum ada jenis pembayaran yang cocok dengan filter.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cart-box">
+      <div class="card-head"><h3>Rincian Pembayaran</h3></div>
+      <div class="card-body">
+        ${cart.length ? cart.map(it=>`
+          <div class="cart-item">
+            <div>
+              <div class="nm">${esc(it.nama)}</div>
+              ${Array.isArray(it.bulanTerpilih) && it.bulanTerpilih.length
+                ? `<div class="tag-muted mono" style="font-size:11.5px;">${esc(labelBulanTerpilih(it.bulanTerpilih))}</div><div class="tag-muted mono">${formatRupiah(it.nominal)} x ${it.qty} bulan</div>`
+                : `<div class="tag-muted mono">${formatRupiah(it.nominal)} x ${it.qty}</div>`}
+            </div>
+            ${Array.isArray(it.bulanTerpilih) && it.bulanTerpilih.length
+              ? `<div class="qty-ctl">
+                  <button data-edit-bulan-cart="${it.jenisId}" style="width:auto;padding:0 8px;">Ubah</button>
+                  <button data-cart-del="${it.jenisId}" style="border-color:var(--red-600);color:var(--red-600);">&times;</button>
+                </div>`
+              : `<div class="qty-ctl">
+                  <button data-cart-dec="${it.jenisId}">−</button>
+                  <span class="mono">${it.qty}</span>
+                  <button data-cart-inc="${it.jenisId}">+</button>
+                  <button data-cart-del="${it.jenisId}" style="border-color:var(--red-600);color:var(--red-600);">&times;</button>
+                </div>`}
+          </div>`).join('') : '<div class="table-empty">Klik jenis pembayaran di kiri untuk menambah ke keranjang.</div>'}
+        <div class="cart-total"><span>Total</span><span>${formatRupiah(total)}</span></div>
+        <div class="field" style="margin-top:16px;">
+          <label>Metode Pembayaran</label>
+          <select id="kasirMetode" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+            <option value="Tunai">Tunai</option>
+            <option value="Transfer">Transfer Bank</option>
+            <option value="QRIS">QRIS</option>
+          </select>
+        </div>
+        <div class="field mb0">
+          <label>Catatan (opsional)</label>
+          <textarea id="kasirCatatan" rows="2" style="width:100%;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);"></textarea>
+        </div>
+        <button class="btn btn-gold btn-block" style="margin-top:14px;" id="btnProsesPembayaran" ${(!cart.length||!state.uiFlags.kasirSantriId)?'disabled':''}>Proses Pembayaran</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   DATA SANTRI
+========================================================= */
+function renderSantri(){
+  const q = (state.uiFlags.santriSearch||'').toLowerCase();
+  const kelasFilter = state.uiFlags.santriFilterKelas||'';
+  const katFilter = state.uiFlags.santriFilterKategori||'';
+  const kelasList = [...new Set(state.santri.map(s=>s.kelas))].sort();
+  const rows = state.santri.filter(s=>
+    (!q || s.nama.toLowerCase().includes(q) || s.nis.toLowerCase().includes(q)) &&
+    (!kelasFilter || s.kelas===kelasFilter) &&
+    (!katFilter || (s.kategoriSantri||'Umum')===katFilter)
+  );
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div class="searchbar">
+        <input type="text" id="searchSantri" placeholder="Cari nama / NIS..." value="${esc(state.uiFlags.santriSearch||'')}">
+        <select id="filterKelasSantri">
+          <option value="">Semua Kelas</option>
+          ${kelasList.map(k=>`<option value="${esc(k)}" ${k===kelasFilter?'selected':''}>Kelas ${esc(k)}</option>`).join('')}
+        </select>
+        <select id="filterKategoriSantri">
+          <option value="">Semua Kategori</option>
+          <option value="Umum" ${katFilter==='Umum'?'selected':''}>Umum</option>
+          <option value="Khusus" ${katFilter==='Khusus'?'selected':''}>Khusus</option>
+        </select>
+      </div>
+      <div class="flex gap8">
+        ${gdriveSyncBtnHTML('btnSyncSantri')}
+        <button class="btn btn-primary btn-sm" id="btnAddSantri">+ Tambah Santri</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>NIS</th><th>Nama</th><th>Kelas</th><th>Asrama</th><th>Kategori</th><th>Wali</th><th>No. HP Wali</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        ${rows.length ? rows.map(s=>`
+          <tr>
+            <td class="mono">${esc(s.nis)}</td>
+            <td>${esc(s.nama)}</td>
+            <td>${esc(s.kelas)}</td>
+            <td>${esc(s.asrama)}</td>
+            <td><span class="badge ${(s.kategoriSantri||'Umum')==='Khusus'?'badge-gold':'badge-hijau'}">${esc(s.kategoriSantri||'Umum')}</span></td>
+            <td>${esc(s.waliNama)}</td>
+            <td class="mono">${esc(s.waliHp)}</td>
+            <td><span class="badge ${s.status==='Aktif'?'badge-hijau':'badge-red'}">${esc(s.status)}</span></td>
+            <td class="actions-cell">
+              <button class="icon-btn" data-edit-santri="${s.id}">Ubah</button>
+              <button class="icon-btn" data-kartu-santri="${s.id}">Kartu</button>
+              <button class="icon-btn" data-del-santri="${s.id}" style="color:var(--red-600);border-color:var(--red-600);">Hapus</button>
+            </td>
+          </tr>`).join('') : `<tr><td colspan="9" class="table-empty">Belum ada data santri yang cocok.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   DATA GURU
+========================================================= */
+function renderGuru(){
+  const q = (state.uiFlags.guruSearch||'').toLowerCase();
+  const rows = state.guru.filter(g=> !q || g.nama.toLowerCase().includes(q) || (g.jabatan||'').toLowerCase().includes(q));
+  const totalGaji = state.guru.reduce((s,g)=>s+(Number(g.gajiPokok)||0),0);
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div class="searchbar">
+        <input type="text" id="searchGuru" placeholder="Cari nama / jabatan..." value="${esc(state.uiFlags.guruSearch||'')}">
+      </div>
+      <div class="flex gap8">
+        ${gdriveSyncBtnHTML('btnSyncGuru')}
+        <button class="btn btn-primary btn-sm" id="btnAddGuru">+ Tambah Guru</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="tag-muted" style="font-size:12.5px;">Data guru di sini terhubung dengan menu <strong>Laporan &rarr; Pengeluaran (Gaji Guru)</strong>: pilih nama guru saat mencatat pengeluaran gaji, nominal otomatis terisi dari Gaji Pokok, dan nota pembayaran gaji bisa langsung dikirim ke WhatsApp guru yang bersangkutan.</div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Nama</th><th>Jabatan / Mapel</th><th>No. HP</th><th>Gaji Pokok / Bulan</th><th></th></tr></thead>
+        <tbody>
+        ${rows.length ? rows.map(g=>`
+          <tr>
+            <td>${esc(g.nama)}</td>
+            <td>${esc(g.jabatan||'-')}</td>
+            <td class="mono">${esc(g.hp||'-')}</td>
+            <td class="mono" style="font-weight:700;">${formatRupiah(g.gajiPokok)}</td>
+            <td class="actions-cell">
+              <button class="icon-btn" data-edit-guru="${g.id}">Ubah</button>
+              <button class="icon-btn" data-riwayat-guru="${g.id}">Riwayat Gaji</button>
+              <button class="icon-btn" data-del-guru="${g.id}" style="color:var(--red-600);border-color:var(--red-600);">Hapus</button>
+            </td>
+          </tr>`).join('') : `<tr><td colspan="5" class="table-empty">Belum ada data guru.</td></tr>`}
+        </tbody>
+        ${rows.length ? `<tfoot><tr><td colspan="3" style="font-weight:700;">Total Gaji Pokok / bulan</td><td class="mono" style="font-weight:700;">${formatRupiah(totalGaji)}</td><td></td></tr></tfoot>` : ''}
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   JENIS PEMBAYARAN
+========================================================= */
+function renderJenisPembayaran(){
+  const q = (state.uiFlags.jpSearch||'').toLowerCase();
+  const rows = state.jenisPembayaran.filter(j=> !q || j.nama.toLowerCase().includes(q));
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div class="searchbar">
+        <input type="text" id="searchJP" placeholder="Cari jenis pembayaran..." value="${esc(state.uiFlags.jpSearch||'')}">
+      </div>
+      <div class="flex gap8">
+        ${gdriveSyncBtnHTML('btnSyncJP')}
+        <button class="btn btn-primary btn-sm" id="btnAddJP">+ Tambah Jenis Pembayaran</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Nama</th><th>Kategori</th><th>Kategori Santri</th><th>Periode</th><th>Nominal</th><th>Keterangan</th><th></th></tr></thead>
+        <tbody>
+        ${rows.length ? rows.map(j=>`
+          <tr>
+            <td style="font-weight:600;">${esc(j.nama)}</td>
+            <td><span class="badge ${j.kategori==='Wajib'?'badge-hijau':j.kategori==='Sukarela'?'badge-gold':'badge-red'}">${esc(j.kategori)}</span></td>
+            <td><span class="badge ${(j.kategoriSantri||'Umum')==='Khusus'?'badge-gold':'badge-hijau'}">${esc(j.kategoriSantri||'Umum')}</span></td>
+            <td>${esc(j.periode)}${j.periode==='Kegiatan'?` <span class="tag-muted">(${j.semester==='Genap'?'Semester 2':'Semester 1'})</span>`:''}</td>
+            <td class="mono">${formatRupiah(j.nominal)}</td>
+            <td class="tag-muted">${esc(j.keterangan||'-')}</td>
+            <td class="actions-cell">
+              <button class="icon-btn" data-edit-jp="${j.id}">Ubah</button>
+              <button class="icon-btn" data-del-jp="${j.id}" style="color:var(--red-600);border-color:var(--red-600);">Hapus</button>
+            </td>
+          </tr>`).join('') : `<tr><td colspan="7" class="table-empty">Belum ada jenis pembayaran.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   RIWAYAT PEMBAYARAN
+========================================================= */
+function renderRiwayat(){
+  const f = state.uiFlags.riwayatFilter;
+  const q = (f.q||'').toLowerCase();
+  let rows = [...state.transaksi].sort((a,b)=> new Date(b.tanggal)-new Date(a.tanggal));
+  rows = rows.filter(t=>{
+    const s = state.santri.find(x=>x.id===t.santriId);
+    const nama = s ? s.nama.toLowerCase() : '';
+    const nis = s ? s.nis.toLowerCase() : '';
+    if(q && !nama.includes(q) && !nis.includes(q) && !(t.noNota||'').toLowerCase().includes(q)) return false;
+    if(f.dari && new Date(t.tanggal) < new Date(f.dari)) return false;
+    if(f.sampai && new Date(t.tanggal) > new Date(f.sampai+'T23:59:59')) return false;
+    if(f.metode && t.metode!==f.metode) return false;
+    return true;
+  });
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div class="searchbar">
+        <input type="text" id="filterRwQ" placeholder="Cari santri / no. nota..." value="${esc(f.q)}">
+        <input type="date" id="filterRwDari" value="${esc(f.dari)}">
+        <input type="date" id="filterRwSampai" value="${esc(f.sampai)}">
+        <select id="filterRwMetode">
+          <option value="">Semua Metode</option>
+          <option value="Tunai" ${f.metode==='Tunai'?'selected':''}>Tunai</option>
+          <option value="Transfer" ${f.metode==='Transfer'?'selected':''}>Transfer</option>
+          <option value="QRIS" ${f.metode==='QRIS'?'selected':''}>QRIS</option>
+        </select>
+      </div>
+      ${gdriveSyncBtnHTML('btnSyncRiwayat')}
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>No. Nota</th><th>Tanggal</th><th>Santri</th><th>Item</th><th>Total</th><th>Metode</th><th></th></tr></thead>
+        <tbody>
+        ${rows.length ? rows.map(t=>{
+          const s = state.santri.find(x=>x.id===t.santriId);
+          const bulananItem = t.items.find(i=> (state.jenisPembayaran.find(j=>j.id===i.jenisId)||{}).periode==='Bulanan');
+          return `<tr>
+            <td class="mono">${esc(t.noNota)}</td>
+            <td>${formatTanggal(t.tanggal, true)}</td>
+            <td>${esc(s?s.nama:'(dihapus)')}</td>
+            <td class="tag-muted">${t.items.map(i=>esc(i.nama)).join(', ')}</td>
+            <td class="mono" style="font-weight:700;">${formatRupiah(t.total)}</td>
+            <td><span class="badge badge-hijau">${esc(t.metode)}</span></td>
+            <td class="actions-cell">
+              <button class="icon-btn" data-view-trx="${t.id}">Detail</button>
+              <button class="icon-btn" data-print-trx="${t.id}">Cetak</button>
+              <button class="icon-btn" data-pdf-trx="${t.id}">PDF</button>
+              <button class="icon-btn" data-wa-trx="${t.id}" ${(!s||!s.waliHp)?'disabled title="Nomor HP wali belum tersedia"':''}>WA</button>
+              ${s ? `<button class="icon-btn" data-kartu-trx="${t.id}">Kartu</button>` : ''}
+              ${state.auth.role==='admin'?`<button class="icon-btn" data-del-trx="${t.id}" style="color:var(--red-600);border-color:var(--red-600);">Hapus</button>`:''}
+            </td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="7" class="table-empty">Tidak ada transaksi yang cocok dengan filter.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   LAPORAN
+========================================================= */
+function periodRange(period){
+  const now = new Date();
+  let start;
+  if(period==='hari') start = startOfDay(now);
+  else if(period==='minggu'){ start = startOfDay(now); start.setDate(start.getDate()-6); }
+  else if(period==='bulan') start = new Date(now.getFullYear(), now.getMonth(), 1);
+  else if(period==='tahun') start = new Date(now.getFullYear(), 0, 1);
+  else start = new Date(2000,0,1);
+  return {start, end: now};
+}
+
+function renderLaporan(){
+  const period = state.uiFlags.laporanPeriod;
+  const {start} = periodRange(period);
+  const rows = state.transaksi.filter(t=> new Date(t.tanggal) >= start)
+    .sort((a,b)=> new Date(b.tanggal)-new Date(a.tanggal));
+  const total = rows.reduce((s,t)=>s+t.total,0);
+
+  const pengeluaranRows = state.pengeluaran.filter(p=> new Date(p.tanggal) >= start)
+    .sort((a,b)=> new Date(b.tanggal)-new Date(a.tanggal));
+  const totalKredit = pengeluaranRows.reduce((s,p)=>s+p.nominal,0);
+  const saldo = total - totalKredit;
+
+  const rekap = {};
+  rows.forEach(t=> t.items.forEach(it=>{
+    if(!rekap[it.nama]) rekap[it.nama] = {jumlah:0, total:0};
+    rekap[it.nama].jumlah += it.qty;
+    rekap[it.nama].total += it.subtotal;
+  }));
+  const rekapRows = Object.entries(rekap).sort((a,b)=>b[1].total-a[1].total);
+
+  const periodLabel = {hari:'Hari Ini', minggu:'7 Hari Terakhir', bulan:'Bulan Ini', tahun:'Tahun Ini', semua:'Semua Waktu'};
+  const pf = state.uiFlags.pengeluaranForm;
+  const isAdmin = state.auth && state.auth.role==='admin';
+
+  return `
+  <div class="card">
+    <div class="card-head">
+      <div class="searchbar">
+        ${Object.entries(periodLabel).map(([k,l])=>`<button class="btn ${period===k?'btn-primary':'btn-outline'} btn-sm" data-laporan-period="${k}">${l}</button>`).join('')}
+      </div>
+      <div class="flex gap8" style="flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" id="btnExportCSV">Export CSV</button>
+        <button class="btn btn-gold btn-sm" id="btnExportExcelLedger">&#128202; Laporan Keuangan (Excel — Leger per Santri)</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="kpi-grid" style="margin-bottom:14px;">
+        <div class="kpi-card" style="border-color:var(--hijau-500);"><div class="label">Debit (Pemasukan)</div><div class="value" style="color:var(--hijau-600);">${formatRupiah(total)}</div><div class="sub">dari pembayaran transaksi &bull; ${periodLabel[period]}</div></div>
+        <div class="kpi-card" style="border-color:var(--red-600);"><div class="label">Kredit (Pengeluaran)</div><div class="value" style="color:var(--red-600);">${formatRupiah(totalKredit)}</div><div class="sub">gaji guru, listrik, kegiatan, dll &bull; ${periodLabel[period]}</div></div>
+        <div class="kpi-card" style="border-color:var(--gold-600);"><div class="label">Saldo Bersih</div><div class="value" style="color:${saldo<0?'var(--red-600)':'var(--gold-600)'};">${formatRupiah(saldo)}</div><div class="sub">debit &minus; kredit</div></div>
+      </div>
+      <div class="kpi-grid" style="margin-bottom:0;">
+        <div class="kpi-card"><div class="label">Jumlah Transaksi</div><div class="value">${rows.length}</div><div class="sub">transaksi tercatat</div></div>
+        <div class="kpi-card"><div class="label">Rata-rata / Transaksi</div><div class="value">${formatRupiah(rows.length? Math.round(total/rows.length):0)}</div></div>
+        <div class="kpi-card"><div class="label">Jumlah Pengeluaran</div><div class="value">${pengeluaranRows.length}</div><div class="sub">catatan kredit</div></div>
+      </div>
+      <div class="tag-muted" style="font-size:12px;margin-top:14px;">
+        &#128161; <strong>Laporan Keuangan (Excel)</strong> berisi rekapan seluruh santri per jenis pembayaran, ditambah satu lembar (sheet) <strong>leger pembayaran</strong> khusus untuk masing-masing santri berisi riwayat pembayaran lengkap pada periode <strong>${periodLabel[period]}</strong>.
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Pengeluaran (Kredit)</h3></div>
+    <div class="card-body">
+      <div class="tag-muted" style="font-size:12.5px;margin-bottom:12px;">Catat pengeluaran pondok seperti gaji guru, token listrik, kegiatan, dan media belajar. Total pengeluaran akan otomatis mengurangi total pemasukan (debit) menjadi saldo bersih di atas.</div>
+      ${isAdmin ? `
+      <div class="pengeluaran-form" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+        <select id="peKategori" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+          ${KATEGORI_PENGELUARAN.map(k=>`<option value="${k}" ${pf.kategori===k?'selected':''}>${esc(k)}</option>`).join('')}
+        </select>
+        ${pf.kategori==='Lainnya' ? `<input type="text" id="peKategoriLain" placeholder="Nama kategori lain..." value="${esc(pf.kategoriLain||'')}" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">` : ''}
+        ${pf.kategori==='Gaji Guru' ? `<select id="peGuru" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+          <option value="">— pilih guru —</option>
+          ${state.guru.map(g=>`<option value="${g.id}" ${pf.guruId===g.id?'selected':''}>${esc(g.nama)}${g.jabatan?` — ${esc(g.jabatan)}`:''}</option>`).join('')}
+        </select>` : ''}
+        <input type="date" id="peTanggal" value="${esc(pf.tanggal || localDateStr())}" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+        <input type="text" id="peKeterangan" placeholder="Keterangan (mis. Gaji guru Juli)" value="${esc(pf.keterangan||'')}" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+        <input type="number" id="peNominal" placeholder="Nominal (Rp)" value="${esc(pf.nominal||'')}" style="padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+        <button class="btn btn-gold btn-sm" id="btnTambahPengeluaran">&#10133; Tambah Pengeluaran</button>
+      </div>
+      ${pf.kategori==='Gaji Guru' ? `<div class="tag-muted" style="font-size:12px;margin-top:-6px;margin-bottom:14px;">&#128161; Pilih nama guru agar nominal terisi otomatis dari Gaji Pokok, dan agar tombol "Kirim WA" tersedia di baris pengeluaran untuk mengirim nota pembayaran gaji langsung ke WhatsApp guru tersebut.</div>` : ''}` : ''}
+      <div class="card-body" style="padding:0;">
+        <table>
+          <thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Nominal</th><th></th></tr></thead>
+          <tbody>
+          ${pengeluaranRows.length? pengeluaranRows.map(p=>{
+            const gp = p.kategori==='Gaji Guru' && p.guruId ? state.guru.find(x=>x.id===p.guruId) : null;
+            return `
+            <tr>
+              <td>${formatTanggal(p.tanggal)}</td>
+              <td><span class="tag-muted">${esc(p.kategori)}</span></td>
+              <td>${esc(p.keterangan||'-')}</td>
+              <td class="mono" style="color:var(--red-600);font-weight:700;">&minus; ${formatRupiah(p.nominal)}</td>
+              <td class="actions-cell">
+                ${gp ? `<button class="icon-btn" data-wa-pengeluaran="${p.id}" ${!gp.hp?'disabled title="Nomor HP guru belum tersedia"':''}>&#128172; Kirim WA</button>` : ''}
+                ${isAdmin?`<button class="icon-btn" data-del-pengeluaran="${p.id}" title="Hapus" style="color:var(--red-600);">&times;</button>`:''}
+              </td>
+            </tr>`;}).join('') : `<tr><td colspan="5" class="table-empty">Belum ada pengeluaran pada periode ini.</td></tr>`}
+          </tbody>
+          ${pengeluaranRows.length ? `<tfoot><tr><td colspan="3" style="font-weight:700;">Total Kredit</td><td class="mono" style="font-weight:700;color:var(--red-600);">&minus; ${formatRupiah(totalKredit)}</td><td></td></tr></tfoot>` : ''}
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Buku Santri per Santri</h3></div>
+    <div class="card-body">
+      <div class="tag-muted" style="font-size:12.5px;margin-bottom:12px;">Cetak, unduh PDF, atau kirim Buku Santri (satu buku pembayaran per tahun ajaran, berisi storan bulanan &amp; kegiatan Semester 1 &amp; Semester 2 yang digabung jadi satu) via WhatsApp — format yang sama dipakai konsisten di seluruh aplikasi.</div>
+      <div class="flex gap8" style="flex-wrap:wrap;">
+        <select id="laporanKartuSantri" style="flex:2;min-width:200px;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);">
+          <option value="">— pilih santri —</option>
+          ${state.santri.map(s=>`<option value="${s.id}">${esc(s.nama)} — ${esc(s.nis)}</option>`).join('')}
+        </select>
+        <button class="btn btn-gold btn-sm" id="btnBukaKartuLaporan">Buka Buku Santri</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Rekap per Jenis Pembayaran</h3></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Jenis Pembayaran</th><th>Jumlah Bayar</th><th>Total Nominal</th></tr></thead>
+        <tbody>
+        ${rekapRows.length? rekapRows.map(([nm,v])=>`<tr><td>${esc(nm)}</td><td>${v.jumlah}</td><td class="mono" style="font-weight:700;">${formatRupiah(v.total)}</td></tr>`).join('') : `<tr><td colspan="3" class="table-empty">Tidak ada data pada periode ini.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Daftar Transaksi (${periodLabel[period]})</h3></div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>No. Nota</th><th>Tanggal</th><th>Santri</th><th>Total</th><th>Metode</th></tr></thead>
+        <tbody>
+        ${rows.length? rows.map(t=>{
+          const s = state.santri.find(x=>x.id===t.santriId);
+          return `<tr><td class="mono">${esc(t.noNota)}</td><td>${formatTanggal(t.tanggal)}</td><td>${esc(s?s.nama:'-')}</td><td class="mono">${formatRupiah(t.total)}</td><td>${esc(t.metode)}</td></tr>`;
+        }).join('') : `<tr><td colspan="5" class="table-empty">Tidak ada transaksi.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   LAPORAN KEUANGAN (EXCEL) — LEGER PEMBAYARAN PER SANTRI
+   Sheet 1: rekap matrix seluruh santri x jenis pembayaran
+   Sheet 2..n: leger (kartu riwayat pembayaran) tiap santri
+========================================================= */
+function sanitizeSheetName(name){
+  // Nama sheet Excel maksimal 31 karakter & tidak boleh mengandung : \ / ? * [ ]
+  return String(name||'Santri').replace(/[:\\\/\?\*\[\]]/g,'-').slice(0,31) || 'Santri';
+}
+
+function uniqueSheetName(base, used){
+  let name = sanitizeSheetName(base);
+  if(!used.has(name)){ used.add(name); return name; }
+  let i = 2;
+  while(true){
+    const suffix = '_'+i;
+    const candidate = sanitizeSheetName(name.slice(0, 31-suffix.length) + suffix);
+    if(!used.has(candidate)){ used.add(candidate); return candidate; }
+    i++;
+  }
+}
+
+function downloadLaporanExcel(){
+  if(!window.XLSX){ toast('Pustaka Excel belum termuat, coba lagi sesaat lagi.', 'err'); return; }
+  try{
+    const period = state.uiFlags.laporanPeriod;
+    const {start} = periodRange(period);
+    const periodLabel = {hari:'Hari Ini', minggu:'7 Hari Terakhir', bulan:'Bulan Ini', tahun:'Tahun Ini', semua:'Semua Waktu'}[period] || period;
+    const rows = state.transaksi.filter(t=> new Date(t.tanggal) >= start);
+
+    const bySantri = {};
+    rows.forEach(t=>{ (bySantri[t.santriId] = bySantri[t.santriId]||[]).push(t); });
+
+    const jenisNames = state.jenisPembayaran.map(j=>j.nama);
+    const wb = XLSX.utils.book_new();
+
+    /* ---- Sheet 1: Rekap Semua Santri ---- */
+    const rekapHeader = ['NIS','Nama Santri','Kelas','Asrama','Status', ...jenisNames, 'Total Bayar','Jumlah Transaksi'];
+    const rekapData = [
+      [state.settings.namaLembaga||''],
+      ['Laporan Keuangan — Rekap Pembayaran Santri ('+periodLabel+')'],
+      ['Diunduh: '+formatTanggal(todayISO(), true)],
+      [],
+      rekapHeader,
+    ];
+    let grandTotal = 0, grandTrx = 0;
+    state.santri.forEach(s=>{
+      const trxSantri = bySantri[s.id] || [];
+      const perJenis = {}; jenisNames.forEach(n=> perJenis[n]=0);
+      let total = 0;
+      trxSantri.forEach(t=> t.items.forEach(it=>{
+        perJenis[it.nama] = (perJenis[it.nama]||0) + it.subtotal;
+        total += it.subtotal;
+      }));
+      grandTotal += total; grandTrx += trxSantri.length;
+      rekapData.push([s.nis, s.nama, s.kelas, s.asrama, s.status, ...jenisNames.map(n=>perJenis[n]), total, trxSantri.length]);
+    });
+    rekapData.push([]);
+    rekapData.push(['','','','','', ...jenisNames.map(()=>''), grandTotal, grandTrx]);
+    const wsRekap = XLSX.utils.aoa_to_sheet(rekapData);
+    wsRekap['!cols'] = [{wch:10},{wch:24},{wch:8},{wch:12},{wch:9}, ...jenisNames.map(()=>({wch:16})), {wch:15},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsRekap, 'Rekap Semua Santri');
+
+    /* ---- Sheet per santri: Leger Pembayaran ---- */
+    const usedNames = new Set(['Rekap Semua Santri']);
+    [...state.santri].sort((a,b)=> a.nama.localeCompare(b.nama)).forEach(s=>{
+      const trxSantri = (bySantri[s.id]||[]).slice().sort((a,b)=> new Date(a.tanggal)-new Date(b.tanggal));
+      const aoa = [];
+      aoa.push([state.settings.namaLembaga||'']);
+      aoa.push(['LEGER PEMBAYARAN SANTRI']);
+      aoa.push(['Periode: '+periodLabel]);
+      aoa.push([]);
+      aoa.push(['Nama Santri', s.nama, '', 'NIS', s.nis]);
+      aoa.push(['Kelas', s.kelas, '', 'Asrama', s.asrama]);
+      aoa.push(['Wali', s.waliNama, '', 'No. HP Wali', s.waliHp]);
+      aoa.push(['Status', s.status]);
+      aoa.push([]);
+      aoa.push(['No','Tanggal','No. Nota','Jenis Pembayaran','Qty','Nominal','Metode','Catatan']);
+      let no = 1, runningTotal = 0;
+      if(trxSantri.length){
+        trxSantri.forEach(t=>{
+          t.items.forEach(it=>{
+            runningTotal += it.subtotal;
+            aoa.push([no++, formatTanggal(t.tanggal, true), t.noNota, it.nama, it.qty, it.subtotal, t.metode, t.catatan||'']);
+          });
+        });
+      } else {
+        aoa.push(['-','-','Belum ada transaksi pembayaran pada periode ini.','','','','','']);
+      }
+      aoa.push([]);
+      aoa.push(['','','','','','TOTAL PEMBAYARAN', runningTotal, '']);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{wch:4},{wch:18},{wch:14},{wch:22},{wch:6},{wch:14},{wch:10},{wch:22}];
+      const sheetName = uniqueSheetName((s.nis?s.nis+' - ':'')+s.nama, usedNames);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    XLSX.writeFile(wb, `Laporan_Keuangan_Leger_Santri_${period}_${Date.now()}.xlsx`);
+    toast('Laporan keuangan Excel (leger per santri) berhasil diunduh.', 'ok');
+  }catch(err){
+    toast('Gagal membuat laporan Excel: '+err.message, 'err');
+  }
+}
+
+function downloadCSV(){
+  const period = state.uiFlags.laporanPeriod;
+  const {start} = periodRange(period);
+  const rows = state.transaksi.filter(t=> new Date(t.tanggal) >= start);
+  let csv = 'DEBIT (PEMASUKAN DARI TRANSAKSI)\n';
+  csv += 'No Nota,Tanggal,Santri,NIS,Item,Total,Metode\n';
+  rows.forEach(t=>{
+    const s = state.santri.find(x=>x.id===t.santriId);
+    const items = t.items.map(i=>i.nama+' x'+i.qty).join(' | ');
+    csv += `"${t.noNota}","${formatTanggal(t.tanggal,true)}","${s?s.nama:''}","${s?s.nis:''}","${items}","${t.total}","${t.metode}"\n`;
+  });
+  const totalDebit = rows.reduce((s,t)=>s+t.total,0);
+  csv += `,,,,,"${totalDebit}",\n`;
+
+  const pengeluaranRows = state.pengeluaran.filter(p=> new Date(p.tanggal) >= start);
+  csv += '\nKREDIT (PENGELUARAN)\n';
+  csv += 'Tanggal,Kategori,Keterangan,Nominal\n';
+  pengeluaranRows.forEach(p=>{
+    csv += `"${formatTanggal(p.tanggal)}","${p.kategori}","${p.keterangan||''}","${p.nominal}"\n`;
+  });
+  const totalKredit = pengeluaranRows.reduce((s,p)=>s+p.nominal,0);
+  csv += `,,"Total Kredit","${totalKredit}"\n`;
+  csv += `\nSALDO BERSIH (DEBIT - KREDIT),"${totalDebit-totalKredit}"\n`;
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `laporan_pembayaran_santri_${Date.now()}.csv`;
+  link.click();
+  toast('Laporan CSV berhasil diunduh.', 'ok');
+}
+
+/* =========================================================
+   PENGGUNA
+========================================================= */
+function renderPengguna(){
+  return `
+  <div class="card">
+    <div class="card-head"><h3>Daftar Pengguna</h3>
+      <div class="flex gap8">
+        ${gdriveSyncBtnHTML('btnSyncUser')}
+        <button class="btn btn-primary btn-sm" id="btnAddUser">+ Tambah Pengguna</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead><tr><th>Nama</th><th>Username</th><th>Peran</th><th></th></tr></thead>
+        <tbody>
+        ${state.users.map(u=>`
+          <tr>
+            <td>${esc(u.nama)}</td>
+            <td class="mono">${esc(u.username)}</td>
+            <td><span class="badge badge-hijau" style="text-transform:capitalize;">${esc(u.role)}</span></td>
+            <td class="actions-cell">
+              <button class="icon-btn" data-edit-user="${u.id}">Ubah</button>
+              ${u.id!==state.auth.id ? `<button class="icon-btn" data-del-user="${u.id}" style="color:var(--red-600);border-color:var(--red-600);">Hapus</button>` : ''}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   PENGATURAN
+========================================================= */
+function renderPengaturan(){
+  const temaOptions = [
+    {key:'default', label:'Hijau Pesantren', c1:'#123524', c2:'#c99a34'},
+    {key:'gelap', label:'Gelap', c1:'#0b1a12', c2:'#eec468'},
+    {key:'klasik', label:'Klasik Krem', c1:'#2c2415', c2:'#c99a34'},
+    {key:'biru', label:'Biru Langit', c1:'#0d2b40', c2:'#c99a34'},
+  ];
+  const temaAktif = state.settings.tema || 'default';
+  const isFileProtocol = location.protocol === 'file:';
+  const gd = state.gdrive || {};
+  return `
+  <div class="settings-grid">
+    <div class="card" style="grid-column:1/-1;">
+      <div class="card-head"><h3>Sinkronisasi Google Drive</h3></div>
+      <div class="card-body">
+        ${isFileProtocol ? `
+        <div class="login-err" style="margin-bottom:16px;line-height:1.6;padding:12px 14px;">
+          <strong>&#9888;&#65039; Aplikasi ini dibuka sebagai file lokal (file://).</strong><br>
+          Google OAuth tidak mengizinkan login dari file lokal. Anda perlu menaruh aplikasi ini di hosting web (gratis &amp; mudah, contoh: Netlify Drop, Vercel, atau GitHub Pages) sebelum sinkronisasi Google Drive bisa berfungsi. Tombol di bawah akan tetap menampilkan pesan error sampai aplikasi di-hosting.
+        </div>` : ''}
+        ${gd.connected ? `
+        <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:10px;">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--hijau-500);color:#fff;font-size:12px;flex:none;">&#10003;</span>
+            Tersambung
+          </div>
+          <div style="font-size:12.5px;margin-bottom:8px;">File backup: <code class="mono" style="background:var(--paper);padding:2px 6px;border-radius:4px;">${esc(GDRIVE_FILE_NAME)}</code></div>
+          <div style="font-size:12.5px;margin-bottom:4px;"><strong>Terakhir disimpan ke Drive:</strong> ${gd.lastUploadAt ? `${formatTanggal(gd.lastUploadAt, true)} — ${gd.lastUploadOk ? '<span style="color:var(--hijau-600);">&#10003; Berhasil</span>' : '<span style="color:var(--red-600);">&#10007; Gagal</span>'}` : 'Belum pernah'}</div>
+          <div style="font-size:12.5px;"><strong>Terakhir diambil dari Drive:</strong> ${gd.lastDownloadAt ? `${formatTanggal(gd.lastDownloadAt, true)} — ${gd.lastDownloadOk ? '<span style="color:var(--hijau-600);">&#10003; Berhasil</span>' : '<span style="color:var(--red-600);">&#10007; Gagal</span>'}` : 'Belum pernah'}</div>
+        </div>
+        <div class="flex" style="flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;">
+          <div class="flex gap8" style="flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="btnGdriveUpload">&#128190; Simpan Data ke Drive</button>
+            <button class="btn btn-outline btn-sm" id="btnGdriveDownload">&#128229; Ambil Data dari Drive</button>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btnGdriveDisconnect" style="color:var(--red-600);border-color:var(--red-600);">Putuskan Sambungan</button>
+        </div>
+        <div style="margin-top:14px;background:var(--gold-100);border:1px solid var(--gold-500);border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.6;color:var(--ink);">
+          &#9888;&#65039; <strong>Urutan yang benar saat membuka di perangkat baru:</strong> pertama klik <em>Ambil Data dari Drive</em> untuk memuat data terbaru, baru kemudian bekerja. Jangan klik <em>Simpan Data</em> sebelum mengambil, karena data lama bisa menimpa backup.
+        </div>
+        <div class="tag-muted" style="font-size:11.5px;margin-top:12px;">Seluruh database (santri, jenis pembayaran, transaksi, pengguna, pengaturan) dicadangkan otomatis ke Google Drive setiap 10 menit selagi tersambung. Tombol &#128260; Update di Dashboard adalah pintasan untuk "Ambil Data dari Drive".</div>
+        ` : `
+        <div class="field"><label>Google OAuth Client ID</label>
+          <input id="gdriveClientId" placeholder="xxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="${esc(gd.clientId||'')}">
+        </div>
+        <button class="btn btn-primary" id="btnGdriveConnect">&#128279; Sambungkan Akun Google Drive</button>
+        <div class="login-hint" style="margin-top:14px;">
+          Setelah tersambung, sistem akan mengecek apakah ada backup di Drive. Jika ada, Anda akan diminta untuk <strong>mengambil data dari Drive terlebih dahulu</strong> sebelum data baru diupload — agar tidak ada data yang tertimpa.
+        </div>
+        `}
+        <details style="margin-top:18px;">
+          <summary style="cursor:pointer;font-weight:700;color:var(--hijau-700);">&#128196; Cara mendapatkan Google OAuth Client ID (sekali saja)</summary>
+          <ol style="margin:10px 0 0 18px;padding:0;font-size:12.5px;line-height:1.9;color:var(--ink);">
+            <li>Buka <strong>console.cloud.google.com</strong> &rarr; buat project baru (atau pilih yang sudah ada).</li>
+            <li>Aktifkan <strong>Google Drive API</strong> di menu "APIs &amp; Services" &rarr; "Library".</li>
+            <li>Buka "APIs &amp; Services" &rarr; "OAuth consent screen", isi nama aplikasi seadanya, tambahkan email Anda sebagai test user (jika status masih "Testing").</li>
+            <li>Buka <strong>Credentials</strong> &rarr; "Create Credentials" &rarr; "OAuth client ID" &rarr; tipe <strong>Web application</strong>.</li>
+            <li>Di "Authorized JavaScript origins", tambahkan alamat hosting aplikasi ini (saat ini: <code>${esc(isFileProtocol ? 'null (buka via file lokal)' : location.origin)}</code>).</li>
+            <li>Salin <strong>Client ID</strong> yang dihasilkan, tempel ke kolom di atas, lalu klik "Sambungkan".</li>
+          </ol>
+          <p style="font-size:11.5px;color:var(--hijau-600);margin-top:8px;">Catatan: tidak perlu Client Secret — aplikasi ini hanya memakai akses sisi-browser (drive.file scope).</p>
+        </details>
+      </div>
+
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Tampilan &amp; Merek Aplikasi</h3></div>
+      <div class="card-body">
+        <p class="tag-muted" style="margin:0 0 12px;">Atur logo, nama aplikasi, dan kutipan yang tampil di halaman Masuk &amp; sidebar.</p>
+        <div class="field">
+          <label>Logo Aplikasi (opsional)</label>
+          <div class="flex gap8" style="align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+            ${state.settings.logoDataUrl
+              ? `<img src="${state.settings.logoDataUrl}" alt="Logo" style="height:44px;max-width:160px;object-fit:contain;border-radius:6px;border:1px solid var(--line);background:#fff;padding:6px;">`
+              : `<span class="tag-muted" style="font-size:12px;">Belum ada logo — memakai teks nama aplikasi di bawah.</span>`}
+          </div>
+          <div class="flex gap8" style="flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" id="btnUploadLogo" type="button">${state.settings.logoDataUrl?'Ganti Logo':'Unggah Logo'}</button>
+            <input type="file" id="fileLogoInput" accept="image/*" style="display:none;">
+            ${state.settings.logoDataUrl ? `<button class="btn btn-outline btn-sm" id="btnHapusLogo" type="button" style="color:var(--red-600);border-color:var(--red-600);">Hapus Logo</button>` : ''}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Nama Aplikasi (bagian awal)</label><input id="stAppPrefix" value="${esc(state.settings.appNamePrefix||'Santri')}"></div>
+          <div class="field"><label>Nama Aplikasi (bagian aksen emas)</label><input id="stAppAccent" value="${esc(state.settings.appNameAccent||'Pay')}"></div>
+        </div>
+        <div class="field mb0"><label>Tagline / Kutipan di Halaman Masuk</label><textarea id="stTagline" rows="3">${esc(state.settings.appTagline||'')}</textarea></div>
+        <button class="btn btn-primary" id="btnSaveBranding" style="margin-top:14px;">Simpan Tampilan</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Profil Lembaga</h3></div>
+      <div class="card-body">
+        <div class="field"><label>Nama Lembaga</label><input id="stNamaLembaga" value="${esc(state.settings.namaLembaga)}"></div>
+        <div class="field"><label>Alamat</label><input id="stAlamat" value="${esc(state.settings.alamat)}"></div>
+        <div class="field mb0"><label>No. Telepon</label><input id="stTelp" value="${esc(state.settings.telp)}"></div>
+        <button class="btn btn-primary" id="btnSaveProfil" style="margin-top:14px;">Simpan Profil</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Tema Tampilan</h3></div>
+      <div class="card-body">
+        <div class="tema-grid">
+          ${temaOptions.map(t=>`
+            <button class="tema-btn ${temaAktif===t.key?'active':''}" data-tema="${t.key}">
+              <span class="tema-swatch" style="background:linear-gradient(135deg,${t.c1},${t.c2});"></span>
+              ${t.label}
+            </button>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Cadangkan &amp; Pulihkan Data</h3></div>
+      <div class="card-body">
+        <p class="tag-muted" style="margin:0 0 12px;">Unduh seluruh data (santri, jenis pembayaran, transaksi, pengguna) sebagai file cadangan, atau pulihkan dari file sebelumnya.</p>
+        <div class="flex gap8" style="flex-wrap:wrap;">
+          <button class="btn btn-outline" id="btnBackupData">Unduh Cadangan (.json)</button>
+          <button class="btn btn-outline" id="btnRestoreData">Pulihkan dari File</button>
+          <input type="file" id="fileRestoreInput" accept=".json" style="display:none;">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Penyimpanan Lokal</h3></div>
+      <div class="card-body">
+        <button class="btn btn-outline btn-sm" id="btnCheckLocalStorage">Cek Status Penyimpanan</button>
+        <button class="btn btn-danger btn-sm" id="btnClearLocalStorage" style="margin-left:8px;">Hapus Data Lokal</button>
+        <div id="localStorageStatus" style="display:none;margin-top:12px;font-size:12.5px;background:var(--paper-2);padding:12px;border-radius:8px;"></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   MODAL
+========================================================= */
+function renderModal(){
+  const m = state.uiFlags.modal;
+  if(!m) return '';
+  let body = '', title = '';
+  if(m.type==='santri'){
+    const d = m.data || {};
+    title = d.id ? 'Ubah Data Santri' : 'Tambah Santri';
+    body = `
+      <div class="form-row">
+        <div class="field"><label>NIS</label><input id="fNis" value="${esc(d.nis||'')}"></div>
+        <div class="field"><label>Nama Lengkap</label><input id="fNama" value="${esc(d.nama||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Kelas</label><input id="fKelas" value="${esc(d.kelas||'')}"></div>
+        <div class="field"><label>Asrama</label><input id="fAsrama" value="${esc(d.asrama||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Jenis Kelamin</label>
+          <select id="fJk"><option value="L" ${d.jenisKelamin==='L'?'selected':''}>Laki-laki</option><option value="P" ${d.jenisKelamin==='P'?'selected':''}>Perempuan</option></select>
+        </div>
+        <div class="field"><label>Status</label>
+          <select id="fStatus"><option value="Aktif" ${d.status==='Aktif'?'selected':''}>Aktif</option><option value="Nonaktif" ${d.status==='Nonaktif'?'selected':''}>Nonaktif</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Kategori Santri</label>
+          <select id="fKategoriSantri">
+            <option value="Umum" ${(d.kategoriSantri||'Umum')==='Umum'?'selected':''}>Umum</option>
+            <option value="Khusus" ${d.kategoriSantri==='Khusus'?'selected':''}>Khusus</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Nama Wali</label><input id="fWaliNama" value="${esc(d.waliNama||'')}"></div>
+        <div class="field"><label>No. HP Wali (format 62...)</label><input id="fWaliHp" value="${esc(d.waliHp||'')}"></div>
+      </div>
+      <div class="field mb0"><label>Alamat</label><textarea id="fAlamat" rows="2">${esc(d.alamat||'')}</textarea></div>
+    `;
+  } else if(m.type==='guru'){
+    const d = m.data || {};
+    title = d.id ? 'Ubah Data Guru' : 'Tambah Guru';
+    body = `
+      <div class="form-row">
+        <div class="field"><label>Nama Lengkap</label><input id="fGNama" value="${esc(d.nama||'')}"></div>
+        <div class="field"><label>Jabatan / Mata Pelajaran</label><input id="fGJabatan" value="${esc(d.jabatan||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>No. HP (format 62...)</label><input id="fGHp" value="${esc(d.hp||'')}"></div>
+        <div class="field"><label>Gaji Pokok / Bulan (Rp)</label><input id="fGGaji" type="number" min="0" value="${d.gajiPokok||0}"></div>
+      </div>
+    `;
+  } else if(m.type==='riwayatGaji'){
+    const g = m.data;
+    const riwayat = state.pengeluaran.filter(p=>p.guruId===g.id).sort((a,b)=> new Date(b.tanggal)-new Date(a.tanggal));
+    const totalDibayar = riwayat.reduce((s,p)=>s+p.nominal,0);
+    title = 'Riwayat Gaji — '+g.nama;
+    body = `
+      <div class="field"><b>Jabatan:</b> ${esc(g.jabatan||'-')}</div>
+      <div class="field"><b>No. HP:</b> ${esc(g.hp||'-')}</div>
+      <div class="field"><b>Gaji Pokok / Bulan:</b> ${formatRupiah(g.gajiPokok)}</div>
+      <table style="margin-top:10px;">
+        <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Nominal</th></tr></thead>
+        <tbody>${riwayat.length? riwayat.map(p=>`<tr><td>${formatTanggal(p.tanggal)}</td><td>${esc(p.keterangan||'-')}</td><td class="mono">${formatRupiah(p.nominal)}</td></tr>`).join('') : `<tr><td colspan="3" class="table-empty">Belum ada riwayat pembayaran gaji.</td></tr>`}</tbody>
+      </table>
+      <div class="cart-total" style="margin-top:12px;"><span>Total Dibayarkan</span><span>${formatRupiah(totalDibayar)}</span></div>
+    `;
+  } else if(m.type==='jenis'){
+    const d = m.data || {};
+    title = d.id ? 'Ubah Jenis Pembayaran' : 'Tambah Jenis Pembayaran';
+    body = `
+      <div class="field"><label>Nama Pembayaran</label><input id="fJpNama" value="${esc(d.nama||'')}"></div>
+      <div class="form-row">
+        <div class="field"><label>Kategori</label>
+          <select id="fJpKategori">
+            <option value="Wajib" ${d.kategori==='Wajib'?'selected':''}>Wajib</option>
+            <option value="Sukarela" ${d.kategori==='Sukarela'?'selected':''}>Sukarela</option>
+            <option value="Insidental" ${d.kategori==='Insidental'?'selected':''}>Insidental</option>
+          </select>
+        </div>
+        <div class="field"><label>Periode</label>
+          <select id="fJpPeriode">
+            <option value="Bulanan" ${d.periode==='Bulanan'?'selected':''}>Bulanan</option>
+            <option value="Tahunan" ${d.periode==='Tahunan'?'selected':''}>Tahunan</option>
+            <option value="Sekali" ${d.periode==='Sekali'?'selected':''}>Sekali Bayar</option>
+            <option value="Kegiatan" ${d.periode==='Kegiatan'?'selected':''}>Kegiatan Semester</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Kategori Santri (berlaku untuk santri Umum/Khusus)</label>
+        <select id="fJpKategoriSantri">
+          <option value="Umum" ${(d.kategoriSantri||'Umum')==='Umum'?'selected':''}>Umum</option>
+          <option value="Khusus" ${d.kategoriSantri==='Khusus'?'selected':''}>Khusus</option>
+        </select>
+      </div>
+      <div class="field"><label>Semester (khusus Periode "Kegiatan Semester")</label>
+        <select id="fJpSemester">
+          <option value="Ganjil" ${(d.semester||'Ganjil')==='Ganjil'?'selected':''}>Semester 1 (Ganjil) — Juli s.d Desember</option>
+          <option value="Genap" ${d.semester==='Genap'?'selected':''}>Semester 2 (Genap) — Januari s.d Juni</option>
+        </select>
+      </div>
+      <div class="field"><label>Nominal (Rp)</label><input id="fJpNominal" type="number" min="0" value="${d.nominal||0}"></div>
+      <div class="field mb0"><label>Keterangan</label><textarea id="fJpKet" rows="2">${esc(d.keterangan||'')}</textarea></div>
+    `;
+  } else if(m.type==='user'){
+    const d = m.data || {};
+    title = d.id ? 'Ubah Pengguna' : 'Tambah Pengguna';
+    body = `
+      <div class="field"><label>Nama</label><input id="fUNama" value="${esc(d.nama||'')}"></div>
+      <div class="form-row">
+        <div class="field"><label>Username</label><input id="fUUsername" value="${esc(d.username||'')}"></div>
+        <div class="field"><label>Peran</label>
+          <select id="fURole"><option value="admin" ${d.role==='admin'?'selected':''}>Admin</option><option value="kasir" ${d.role==='kasir'?'selected':''}>Bendahara/Kasir</option></select>
+        </div>
+      </div>
+      <div class="field mb0"><label>Kata Sandi ${d.id?'(kosongkan jika tidak diubah)':''}</label><input id="fUPass" type="password" placeholder="••••••••"></div>
+    `;
+  } else if(m.type==='trxDetail'){
+    const t = m.data;
+    const s = state.santri.find(x=>x.id===t.santriId);
+    title = 'Detail Pembayaran — '+t.noNota;
+    body = `
+      <div class="field"><b>Santri:</b> ${esc(s?s.nama:'-')} (${esc(s?s.nis:'-')})</div>
+      <div class="field"><b>Tanggal:</b> ${formatTanggal(t.tanggal, true)}</div>
+      <div class="field"><b>Metode:</b> ${esc(t.metode)}</div>
+      ${t.catatan ? `<div class="field"><b>Catatan:</b> ${esc(t.catatan)}</div>` : ''}
+      <table style="margin-top:10px;">
+        <thead><tr><th>Item</th><th>Qty</th><th>Subtotal</th></tr></thead>
+        <tbody>${t.items.map(i=>`<tr><td>${esc(i.nama)}${Array.isArray(i.bulanTerpilih)&&i.bulanTerpilih.length?`<div class="tag-muted" style="font-size:11px;">${esc(labelBulanTerpilih(i.bulanTerpilih))}</div>`:''}</td><td>${i.qty}</td><td class="mono">${formatRupiah(i.subtotal)}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="cart-total" style="margin-top:12px;"><span>Total</span><span>${formatRupiah(t.total)}</span></div>
+    `;
+  }
+
+  const trxWaDisabled = (m.type==='trxDetail') ? (()=>{ const s = state.santri.find(x=>x.id===m.data.santriId); return !s || !s.waliHp; })() : true;
+  const footBtns = (m.type==='trxDetail')
+    ? `<button class="btn btn-outline" id="modalCancel">Tutup</button><button class="btn btn-outline" id="modalPdfFromDetail">Unduh PDF</button><button class="btn btn-outline" id="modalWaFromDetail" ${trxWaDisabled?'disabled title="Nomor HP wali belum tersedia"':''}>Kirim WA</button><button class="btn btn-gold" id="modalPrintFromDetail">Cetak Kwitansi</button>`
+    : (m.type==='riwayatGaji')
+    ? `<button class="btn btn-outline" id="modalCancel">Tutup</button>`
+    : `<button class="btn btn-outline" id="modalCancel">Batal</button><button class="btn btn-primary" id="modalSave">Simpan</button>`;
+
+  return `
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-head"><h3>${title}</h3><button class="modal-close" id="modalClose">&times;</button></div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-foot">${footBtns}</div>
+    </div>
+  </div>`;
+}
+
+function openModal(type, data){ state.uiFlags.modal = {type, data}; render(); }
+function closeModal(){ state.uiFlags.modal = null; render(); }
+
+/* =========================================================
+   SIMPAN MODAL
+========================================================= */
+async function saveModal(){
+  const m = state.uiFlags.modal;
+  if(!m) return;
+  if(m.type==='santri'){
+    const nis = document.getElementById('fNis').value.trim();
+    const nama = document.getElementById('fNama').value.trim();
+    if(!nis || !nama){ toast('NIS dan Nama wajib diisi.', 'err'); return; }
+    const payload = {
+      nis, nama,
+      kelas: document.getElementById('fKelas').value.trim(),
+      asrama: document.getElementById('fAsrama').value.trim(),
+      jenisKelamin: document.getElementById('fJk').value,
+      status: document.getElementById('fStatus').value,
+      kategoriSantri: document.getElementById('fKategoriSantri').value,
+      waliNama: document.getElementById('fWaliNama').value.trim(),
+      waliHp: document.getElementById('fWaliHp').value.trim(),
+      alamat: document.getElementById('fAlamat').value.trim(),
+    };
+    if(m.data && m.data.id){
+      const idx = state.santri.findIndex(x=>x.id===m.data.id);
+      state.santri[idx] = {...state.santri[idx], ...payload};
+    } else {
+      state.santri.push({id:uid(), ...payload});
+    }
+    dbSet('santri', state.santri);
+    toast('Data santri disimpan.', 'ok');
+  } else if(m.type==='guru'){
+    const nama = document.getElementById('fGNama').value.trim();
+    if(!nama){ toast('Nama guru wajib diisi.', 'err'); return; }
+    const payload = {
+      nama,
+      jabatan: document.getElementById('fGJabatan').value.trim(),
+      hp: document.getElementById('fGHp').value.trim(),
+      gajiPokok: Number(document.getElementById('fGGaji').value)||0,
+    };
+    if(m.data && m.data.id){
+      const idx = state.guru.findIndex(x=>x.id===m.data.id);
+      state.guru[idx] = {...state.guru[idx], ...payload};
+    } else {
+      state.guru.push({id:uid(), ...payload});
+    }
+    dbSet('guru', state.guru);
+    toast('Data guru disimpan.', 'ok');
+  } else if(m.type==='jenis'){
+    const nama = document.getElementById('fJpNama').value.trim();
+    if(!nama){ toast('Nama pembayaran wajib diisi.', 'err'); return; }
+    const payload = {
+      nama,
+      kategori: document.getElementById('fJpKategori').value,
+      kategoriSantri: document.getElementById('fJpKategoriSantri').value,
+      periode: document.getElementById('fJpPeriode').value,
+      semester: document.getElementById('fJpSemester').value,
+      nominal: Number(document.getElementById('fJpNominal').value)||0,
+      keterangan: document.getElementById('fJpKet').value.trim(),
+    };
+    if(m.data && m.data.id){
+      const idx = state.jenisPembayaran.findIndex(x=>x.id===m.data.id);
+      state.jenisPembayaran[idx] = {...state.jenisPembayaran[idx], ...payload};
+    } else {
+      state.jenisPembayaran.push({id:uid(), ...payload});
+    }
+    dbSet('jenisPembayaran', state.jenisPembayaran);
+    toast('Jenis pembayaran disimpan.', 'ok');
+  } else if(m.type==='user'){
+    const username = document.getElementById('fUUsername').value.trim();
+    const nama = document.getElementById('fUNama').value.trim();
+    if(!username || !nama){ toast('Nama dan username wajib diisi.', 'err'); return; }
+    const dup = state.users.find(u=>u.username===username && (!m.data || u.id!==m.data.id));
+    if(dup){ toast('Username sudah digunakan.', 'err'); return; }
+    const pass = document.getElementById('fUPass').value;
+    const payload = { nama, username, role: document.getElementById('fURole').value };
+    if(m.data && m.data.id){
+      const idx = state.users.findIndex(x=>x.id===m.data.id);
+      state.users[idx] = {...state.users[idx], ...payload, password: pass? pass : state.users[idx].password};
+    } else {
+      if(!pass){ toast('Kata sandi wajib diisi untuk pengguna baru.', 'err'); return; }
+      state.users.push({id:uid(), ...payload, password: pass});
+    }
+    dbSet('users', state.users);
+    toast('Pengguna disimpan.', 'ok');
+  }
+  closeModal();
+}
+
+/* =========================================================
+   NOTA / KWITANSI & WHATSAPP
+========================================================= */
+function buildNotaHTML(trx){
+  const s = state.santri.find(x=>x.id===trx.santriId);
+  const logoImg = state.settings.logoDataUrl
+    ? `<img src="${esc(state.settings.logoDataUrl)}" alt="logo">`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="#f2f9f4" stroke-width="2"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z"/><path d="M7 10.5v5c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-5"/></svg>`;
+  return `
+  <div class="nota">
+    <div class="stamp">LUNAS</div>
+    <div class="nota-head">
+      <div class="nota-logo">${logoImg}</div>
+      <h2>${esc(state.settings.namaLembaga)}</h2>
+      <div class="nota-sub">${esc(state.settings.alamat)}${state.settings.telp?' &middot; '+esc(state.settings.telp):''}</div>
+    </div>
+    <div class="nota-body">
+      <div class="nota-eyebrow">Bukti Pembayaran Santri</div>
+      <div class="noNota-highlight">
+        <div class="lbl">Nomor Struk</div>
+        <div class="val">${esc(trx.noNota)}</div>
+      </div>
+      <div class="row"><span>Tanggal / Jam</span><span>${formatTanggal(trx.tanggal, true)}</span></div>
+      <div class="row"><span>Nama Santri</span><span>${esc(s?s.nama:'-')}</span></div>
+      <div class="row"><span>NIS / Kelas</span><span>${esc(s?s.nis:'-')} / ${esc(s?s.kelas:'-')}</span></div>
+      <div class="row"><span>Kasir</span><span>${esc(trx.kasirNama||'-')}</span></div>
+      <hr>
+      ${trx.items.map(i=>`
+        <div class="item-row">
+          <div class="row"><span>${esc(i.nama)}</span><span>${formatRupiah(i.subtotal)}</span></div>
+          <div class="item-sub">${esc(i.qty)} &times; ${formatRupiah(i.nominal)}${Array.isArray(i.bulanTerpilih)&&i.bulanTerpilih.length?` &nbsp;&bull;&nbsp; ${esc(labelBulanTerpilih(i.bulanTerpilih))}`:''}</div>
+        </div>`).join('')}
+      <hr class="solid">
+      <div class="total-row"><span>Total Bayar</span><span>${formatRupiah(trx.total)}</span></div>
+      <div class="row"><span>Metode</span><span>${esc(trx.metode)}</span></div>
+      ${trx.catatan ? `<div class="row"><span>Catatan</span><span>${esc(trx.catatan)}</span></div>` : ''}
+      <hr>
+      <div class="nota-foot">
+        <div class="thanks">Terima kasih atas pembayarannya</div>
+        <div class="doa">Barakallahu fiikum</div>
+      </div>
+      <div class="nota-printed">Struk dicetak otomatis &middot; ${esc(state.settings.appNamePrefix||'Santri')}${esc(state.settings.appNameAccent||'Pay')}</div>
+    </div>
+  </div>`;
+}
+
+function printNota(trx){
+  const area = document.getElementById('printArea');
+  area.innerHTML = buildNotaHTML(trx);
+  area.style.display = 'block';
+  window.print();
+  setTimeout(()=>{ area.style.display='none'; area.innerHTML=''; }, 300);
+}
+
+// Membuat struk pembayaran dalam format PDF (lebar 80mm, gaya kwitansi kasir profesional).
+function buildNotaPDF(trx){
+  if(!window.jspdf || !window.jspdf.jsPDF){ throw new Error('Pustaka PDF belum termuat, coba lagi sesaat lagi.'); }
+  const s = state.santri.find(x=>x.id===trx.santriId);
+  const { jsPDF } = window.jspdf;
+  const W = 80, M = 5, CX = W/2;
+  const bulanLineCount = trx.items.filter(i=>Array.isArray(i.bulanTerpilih)&&i.bulanTerpilih.length).length;
+  const lineCount = (trx.items.length*2) + bulanLineCount + (trx.catatan?1:0);
+  const H = 92 + lineCount*4.2;
+  const doc = new jsPDF({ unit:'mm', format:[W, H] });
+  let y = 10;
+  const center = (t,size,bold,italic)=>{ doc.setFont('helvetica', italic?'italic':(bold?'bold':'normal')); doc.setFontSize(size); doc.text(String(t), CX, y, {align:'center'}); y+=size/2.1+0.6; };
+  const hr = (dashed)=>{ y+=1.2; doc.setDrawColor(dashed?170:20); doc.setLineWidth(dashed?0.12:0.25); if(dashed) doc.setLineDashPattern([0.8,0.8],0); else doc.setLineDashPattern([],0); doc.line(M,y,W-M,y); doc.setLineDashPattern([],0); y+=4; };
+  const row = (l,r,bold)=>{
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?9:8);
+    doc.text(String(l), M, y);
+    doc.text(String(r), W-M, y, {align:'right'});
+    y+=4.4;
+  };
+
+  // --- Kop lembaga ---
+  center(state.settings.namaLembaga||'-', 12, true); y+=0.5;
+  if(state.settings.alamat) center(state.settings.alamat, 7, false);
+  if(state.settings.telp) center(state.settings.telp, 7, false);
+  hr();
+  center('BUKTI PEMBAYARAN SANTRI', 7.5, true);
+  y+=2;
+
+  // --- Kotak nomor struk (menonjol) ---
+  doc.setDrawColor(41,122,82); doc.setLineWidth(0.25); doc.setLineDashPattern([0.9,0.7],0);
+  doc.roundedRect(M, y-4.2, W-2*M, 10, 1.3, 1.3);
+  doc.setLineDashPattern([],0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(6);
+  doc.text('NOMOR STRUK', CX, y-0.8, {align:'center'});
+  doc.setFontSize(10);
+  doc.text(trx.noNota, CX, y+3.8, {align:'center'});
+  y += 9.5;
+
+  row('Tanggal / Jam', formatTanggal(trx.tanggal, true));
+  row('Nama Santri', s ? s.nama : '-');
+  row('NIS / Kelas', (s ? s.nis : '-') + ' / ' + (s ? s.kelas : '-'));
+  row('Kasir', trx.kasirNama || '-');
+  hr(true);
+
+  // --- Rincian item ---
+  trx.items.forEach(i=>{
+    row(i.nama, formatRupiah(i.subtotal));
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.6); doc.setTextColor(120);
+    let detail = `${i.qty} x ${formatRupiah(i.nominal)}`;
+    if(Array.isArray(i.bulanTerpilih) && i.bulanTerpilih.length) detail += `  \u2022  ${labelBulanTerpilih(i.bulanTerpilih)}`;
+    doc.text(detail, M, y-2.4);
+    doc.setTextColor(0);
+    y+=2.6;
+  });
+  hr();
+  row('TOTAL BAYAR', formatRupiah(trx.total), true);
+  row('Metode', trx.metode);
+  if(trx.catatan) row('Catatan', trx.catatan);
+  hr(true);
+  center('Terima kasih atas pembayarannya', 8, true);
+  center('Barakallahu fiikum', 7, false, true);
+  y+=1.5;
+  center(`Struk dicetak otomatis \u00B7 ${(state.settings.appNamePrefix||'Santri')}${(state.settings.appNameAccent||'Pay')}`, 5.5, false);
+  return doc;
+}
+
+function downloadNotaPDF(trx){
+  try{
+    const doc = buildNotaPDF(trx);
+    doc.save(`Struk_${trx.noNota}.pdf`);
+    return true;
+  }catch(err){ toast('Gagal membuat PDF: '+err.message, 'err'); return false; }
+}
+
+function kirimNotaWA(trx){
+  const s = state.santri.find(x=>x.id===trx.santriId);
+  if(!s || !s.waliHp){ toast('Nomor HP wali santri belum tersedia.', 'err'); return; }
+  const ok = downloadNotaPDF(trx);
+  const lines = trx.items.map(i=>`- ${i.nama} x${i.qty}${Array.isArray(i.bulanTerpilih)&&i.bulanTerpilih.length?' ('+labelBulanTerpilih(i.bulanTerpilih)+')':''}: ${formatRupiah(i.subtotal)}`).join('%0A');
+  const msg = `Assalamu'alaikum, konfirmasi pembayaran santri:%0A%0ANama: ${encodeURIComponent(s.nama)}%0ANIS: ${encodeURIComponent(s.nis)}%0ANo. Nota: ${encodeURIComponent(trx.noNota)}%0ATanggal: ${encodeURIComponent(formatTanggal(trx.tanggal, true))}%0A%0A${lines}%0A%0ATotal: ${encodeURIComponent(formatRupiah(trx.total))}%0AMetode: ${encodeURIComponent(trx.metode)}%0A%0ATerima kasih, Barakallahu fiikum.`;
+  window.open(`https://wa.me/${s.waliHp.replace(/[^0-9]/g,'')}?text=${msg}`, '_blank');
+  if(ok) toast('Struk PDF terunduh. Lampirkan file tersebut secara manual di chat WhatsApp yang baru terbuka (WhatsApp tidak mengizinkan lampiran otomatis dari browser).', 'ok');
+}
+
+// Membuat nota pembayaran gaji guru dalam format PDF (lebar 80mm, gaya kwitansi kasir).
+function buildNotaGajiGuruPDF(p){
+  if(!window.jspdf || !window.jspdf.jsPDF){ throw new Error('Pustaka PDF belum termuat, coba lagi sesaat lagi.'); }
+  const g = state.guru.find(x=>x.id===p.guruId);
+  const { jsPDF } = window.jspdf;
+  const W = 80, M = 5, CX = W/2;
+  const H = 78;
+  const doc = new jsPDF({ unit:'mm', format:[W, H] });
+  let y = 9;
+  const center = (t,size,bold)=>{ doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(size); doc.text(String(t), CX, y, {align:'center'}); y+=size/2.1; };
+  const hr = ()=>{ y+=1.5; doc.setDrawColor(120); doc.setLineWidth(0.15); doc.line(M,y,W-M,y); y+=4; };
+  const row = (l,r,bold)=>{
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?9:8);
+    doc.text(String(l), M, y);
+    doc.text(String(r), W-M, y, {align:'right'});
+    y+=4.6;
+  };
+  center(state.settings.namaLembaga||'-', 11, true); y+=1;
+  if(state.settings.alamat) center(state.settings.alamat, 7.5, false);
+  if(state.settings.telp) center(state.settings.telp, 7.5, false);
+  hr();
+  center('NOTA PEMBAYARAN GAJI GURU', 8, true);
+  hr();
+  row('Nama Guru', g ? g.nama : '-');
+  row('Jabatan', g ? (g.jabatan||'-') : '-');
+  row('Tanggal', formatTanggal(p.tanggal, true));
+  hr();
+  row('Keterangan', p.keterangan || '-');
+  hr();
+  row('NOMINAL', formatRupiah(p.nominal), true);
+  hr();
+  center('Terima kasih atas dedikasinya.', 7.5, false);
+  center('Barakallahu fiikum.', 7.5, false);
+  return doc;
+}
+
+function downloadNotaGajiGuruPDF(p){
+  try{
+    const doc = buildNotaGajiGuruPDF(p);
+    const g = state.guru.find(x=>x.id===p.guruId);
+    doc.save(`Nota_Gaji_${(g?g.nama:'guru').replace(/[^a-z0-9]+/gi,'_')}_${localDateStr(p.tanggal)}.pdf`);
+    return true;
+  }catch(err){ toast('Gagal membuat PDF: '+err.message, 'err'); return false; }
+}
+
+function kirimNotaGajiWA(pengeluaranId){
+  const p = state.pengeluaran.find(x=>x.id===pengeluaranId);
+  if(!p) return;
+  const g = state.guru.find(x=>x.id===p.guruId);
+  if(!g || !g.hp){ toast('Nomor HP guru belum tersedia.', 'err'); return; }
+  const ok = downloadNotaGajiGuruPDF(p);
+  const msg = `Assalamu'alaikum, konfirmasi pembayaran gaji guru:%0A%0ANama: ${encodeURIComponent(g.nama)}%0AJabatan: ${encodeURIComponent(g.jabatan||'-')}%0ATanggal: ${encodeURIComponent(formatTanggal(p.tanggal, true))}%0AKeterangan: ${encodeURIComponent(p.keterangan||'-')}%0A%0ANominal: ${encodeURIComponent(formatRupiah(p.nominal))}%0A%0ATerima kasih atas dedikasinya, Barakallahu fiikum.`;
+  window.open(`https://wa.me/${g.hp.replace(/[^0-9]/g,'')}?text=${msg}`, '_blank');
+  if(ok) toast('Nota gaji PDF terunduh. Lampirkan file tersebut secara manual di chat WhatsApp yang baru terbuka (WhatsApp tidak mengizinkan lampiran otomatis dari browser).', 'ok');
+}
+
+/* =========================================================
+   GOOGLE DRIVE SYNC
+========================================================= */
+let gdriveTokenClient = null;
+let gdriveTokenClientId = null;
+let gdriveAccessToken = null;
+let gdriveTokenExpiry = 0;
+let gdriveAutoBackupTimer = null;
+const GDRIVE_FILE_NAME = 'santripay_backup.json';
+const GDRIVE_AUTO_BACKUP_MS = 10*60*1000; // 10 menit
+
+function gdriveInitTokenClient(clientId){
+  if(!window.google || !window.google.accounts || !window.google.accounts.oauth2){
+    toast('Google Identity Services belum siap dimuat. Coba lagi sesaat lagi.', 'err');
+    return null;
+  }
+  return google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: ()=>{},
+  });
+}
+
+function gdriveRequestToken(onSuccess){
+  const clientId = (state.gdrive.clientId||'').trim();
+  if(!clientId){ toast('Isi Google OAuth Client ID terlebih dahulu.', 'err'); return; }
+  if(location.protocol === 'file:'){
+    toast('Google OAuth tidak mengizinkan login dari file lokal. Hosting aplikasi ini terlebih dahulu.', 'err');
+    return;
+  }
+  if(!gdriveTokenClient || gdriveTokenClientId !== clientId){
+    gdriveTokenClient = gdriveInitTokenClient(clientId);
+    gdriveTokenClientId = clientId;
+  }
+  if(!gdriveTokenClient) return;
+  gdriveTokenClient.callback = (resp)=>{
+    if(resp.error){ toast('Gagal menyambungkan Google Drive: '+resp.error, 'err'); return; }
+    gdriveAccessToken = resp.access_token;
+    gdriveTokenExpiry = Date.now() + ((resp.expires_in||3600)*1000) - 60000;
+    onSuccess();
+  };
+  gdriveTokenClient.requestAccessToken({ prompt: gdriveAccessToken ? '' : 'consent' });
+}
+
+function gdriveEnsureToken(onSuccess){
+  if(gdriveAccessToken && Date.now() < gdriveTokenExpiry){ onSuccess(); return; }
+  gdriveRequestToken(onSuccess);
+}
+
+function gdriveStartAutoBackup(){
+  if(gdriveAutoBackupTimer) clearInterval(gdriveAutoBackupTimer);
+  gdriveAutoBackupTimer = setInterval(()=>{ gdriveAutoUpload(); }, GDRIVE_AUTO_BACKUP_MS);
+}
+
+function gdriveStopAutoBackup(){
+  if(gdriveAutoBackupTimer){ clearInterval(gdriveAutoBackupTimer); gdriveAutoBackupTimer = null; }
+}
+
+// Cadangan otomatis diam-diam setiap 10 menit — hanya berjalan jika token akses
+// masih berlaku di memori (tidak memaksa munculnya popup consent tanpa interaksi user).
+function gdriveAutoUpload(){
+  if(!state.gdrive || !state.gdrive.connected) return;
+  if(!(gdriveAccessToken && Date.now() < gdriveTokenExpiry)) return;
+  gdriveUpload(true);
+}
+
+async function gdriveFindBackupFile(){
+  const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive`, {
+    headers: { Authorization: 'Bearer '+gdriveAccessToken }
+  });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const data = await res.json();
+  return (data.files && data.files.length) ? data.files[0] : null;
+}
+
+async function gdriveCheckExistingAfterConnect(){
+  try{
+    const f = await gdriveFindBackupFile();
+    if(f){
+      state.gdrive.fileId = f.id;
+      dbSet('gdrive', state.gdrive);
+      if(confirm('Ditemukan cadangan data di Google Drive (terakhir diubah '+formatTanggal(f.modifiedTime,true)+'). Ambil data ini sekarang? Data lokal saat ini akan ditimpa.\n\nKlik Batal jika ingin menyimpan data lokal saat ini ke Drive.')){
+        await gdriveDownloadAndRestore();
+        return;
+      }
+    }
+  }catch(err){ toast('Gagal memeriksa cadangan di Drive: '+err.message, 'err'); }
+  render();
+}
+
+function gdriveConnect(clientIdOverride){
+  const input = document.getElementById('gdriveClientId');
+  const override = (typeof clientIdOverride === 'string') ? clientIdOverride.trim() : '';
+  const clientId = (override ? override : (input ? input.value.trim() : ''));
+  if(!clientId){ toast('Isi Google OAuth Client ID terlebih dahulu.', 'err'); return; }
+  state.gdrive.clientId = clientId;
+  dbSet('gdrive', state.gdrive);
+  gdriveRequestToken(async ()=>{
+    state.gdrive.connected = true;
+    dbSet('gdrive', state.gdrive);
+    localStorage.setItem(LS_PREFIX+'deviceSeen', '1');
+    state.uiFlags.deviceModalOpen = false;
+    toast('Berhasil tersambung ke Google Drive.', 'ok');
+    gdriveStartAutoBackup();
+    await gdriveCheckExistingAfterConnect();
+  });
+}
+
+function gdriveDisconnect(){
+  if(!confirm('Putuskan sambungan Google Drive? Cadangan otomatis akan dihentikan, namun file backup yang sudah ada di Drive tidak akan dihapus.')) return;
+  gdriveStopAutoBackup();
+  gdriveAccessToken = null;
+  gdriveTokenExpiry = 0;
+  gdriveTokenClient = null;
+  gdriveTokenClientId = null;
+  state.gdrive.connected = false;
+  dbSet('gdrive', state.gdrive);
+  toast('Sambungan Google Drive diputuskan.', 'ok');
+  render();
+}
+
+function gdriveUpload(silent){
+  gdriveEnsureToken(async ()=>{
+    try{
+      const backup = {
+        users: state.users, santri: state.santri, guru: state.guru, jenisPembayaran: state.jenisPembayaran,
+        transaksi: state.transaksi, pengeluaran: state.pengeluaran, settings: state.settings, exportedAt: todayISO(),
+      };
+      const content = JSON.stringify(backup, null, 2);
+      let fileId = state.gdrive.fileId;
+      if(!fileId){
+        const existing = await gdriveFindBackupFile();
+        if(existing) fileId = existing.id;
+      }
+      const boundary = 'santripay-'+Date.now();
+      const metaPart = fileId ? '{}' : JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' });
+      const body =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metaPart}\r\n`+
+        `--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+      const url = fileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+      const res = await fetch(url, {
+        method: fileId ? 'PATCH' : 'POST',
+        headers: { Authorization: 'Bearer '+gdriveAccessToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      state.gdrive.fileId = data.id;
+      state.gdrive.lastUploadAt = new Date().toISOString();
+      state.gdrive.lastUploadOk = true;
+      dbSet('gdrive', state.gdrive);
+      if(!silent) toast('Data berhasil disimpan ke Google Drive.', 'ok');
+      if(!silent || state.route==='pengaturan' || state.route==='dashboard') render();
+    }catch(err){
+      state.gdrive.lastUploadAt = new Date().toISOString();
+      state.gdrive.lastUploadOk = false;
+      dbSet('gdrive', state.gdrive);
+      if(!silent) toast('Gagal menyimpan ke Google Drive: '+err.message, 'err');
+      if(!silent && (state.route==='pengaturan' || state.route==='dashboard')) render();
+    }
+  });
+}
+
+async function gdriveDownloadAndRestore(){
+  try{
+    let fileId = state.gdrive.fileId;
+    if(!fileId){ const f = await gdriveFindBackupFile(); if(f) fileId = f.id; }
+    if(!fileId){ toast('Belum ada cadangan data di Google Drive.', 'err'); return; }
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer '+gdriveAccessToken }
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    if(data.users){ state.users = data.users; dbSet('users', state.users); }
+    if(data.santri){ state.santri = data.santri; dbSet('santri', state.santri); }
+    if(data.guru){ state.guru = data.guru; dbSet('guru', state.guru); }
+    if(data.jenisPembayaran){ state.jenisPembayaran = data.jenisPembayaran; dbSet('jenisPembayaran', state.jenisPembayaran); }
+    if(data.transaksi){ state.transaksi = data.transaksi; dbSet('transaksi', state.transaksi); }
+    if(data.pengeluaran){ state.pengeluaran = data.pengeluaran; dbSet('pengeluaran', state.pengeluaran); }
+    if(data.settings){ state.settings = data.settings; dbSet('settings', state.settings); applyTema(state.settings.tema); }
+    state.gdrive.fileId = fileId;
+    state.gdrive.lastDownloadAt = new Date().toISOString();
+    state.gdrive.lastDownloadOk = true;
+    dbSet('gdrive', state.gdrive);
+    toast('Data berhasil dipulihkan dari Google Drive.', 'ok');
+    render();
+  }catch(err){
+    state.gdrive.lastDownloadAt = new Date().toISOString();
+    state.gdrive.lastDownloadOk = false;
+    dbSet('gdrive', state.gdrive);
+    toast('Gagal memulihkan dari Google Drive: '+err.message, 'err');
+    render();
+  }
+}
+
+function gdriveSyncBtnHTML(id, label){
+  return `<button class="btn btn-gold btn-sm" id="${id}" ${!state.gdrive.connected?'disabled title="Sambungkan Google Drive di menu Pengaturan terlebih dahulu"':''}>&#128190; ${label||'Simpan &amp; Sinkron ke Drive'}</button>`;
+}
+
+function gdriveUpdateFromDashboard(){
+  if(!state.gdrive.clientId){
+    const msg = state.auth.role==='admin'
+      ? 'Hubungkan Google Drive terlebih dahulu di menu Pengaturan.'
+      : 'Google Drive belum tersambung. Hubungi Admin untuk menyambungkannya di menu Pengaturan.';
+    toast(msg, 'err'); return;
+  }
+  if(!confirm('Ambil data terbaru dari Google Drive? Data lokal saat ini akan ditimpa.')) return;
+  gdriveEnsureToken(()=> gdriveDownloadAndRestore());
+}
+
+/* =========================================================
+   BACKUP / RESTORE
+========================================================= */
+function downloadBackup(){
+  const backup = {
+    users: state.users, santri: state.santri, guru: state.guru, jenisPembayaran: state.jenisPembayaran,
+    transaksi: state.transaksi, pengeluaran: state.pengeluaran, settings: state.settings, exportedAt: todayISO(),
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `backup_santripay_${Date.now()}.json`;
+  link.click();
+  toast('Cadangan data berhasil diunduh.', 'ok');
+}
+
+function restoreFromFile(file){
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!confirm('Memulihkan data akan menimpa data saat ini di perangkat ini. Lanjutkan?')) return;
+      if(data.users) { state.users = data.users; dbSet('users', state.users); }
+      if(data.santri) { state.santri = data.santri; dbSet('santri', state.santri); }
+      if(data.guru) { state.guru = data.guru; dbSet('guru', state.guru); }
+      if(data.jenisPembayaran) { state.jenisPembayaran = data.jenisPembayaran; dbSet('jenisPembayaran', state.jenisPembayaran); }
+      if(data.transaksi) { state.transaksi = data.transaksi; dbSet('transaksi', state.transaksi); }
+      if(data.pengeluaran) { state.pengeluaran = data.pengeluaran; dbSet('pengeluaran', state.pengeluaran); }
+      if(data.settings) { state.settings = data.settings; dbSet('settings', state.settings); applyTema(state.settings.tema); }
+      toast('Data berhasil dipulihkan.', 'ok');
+      render();
+    }catch(err){ toast('File cadangan tidak valid: '+err.message, 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+/* =========================================================
+   EVENTS — SHELL
+========================================================= */
+function attachShellEvents(){
+  document.querySelectorAll('[data-route]').forEach(b=>b.addEventListener('click', ()=>{
+    state.route = b.dataset.route; render();
+  }));
+  document.getElementById('btnLogout')?.addEventListener('click', ()=>{
+    state.auth = null; sessionStorage.removeItem(LS_PREFIX+'authId'); render();
+  });
+
+  // modal generic
+  document.getElementById('modalOverlay')?.addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+  document.getElementById('modalClose')?.addEventListener('click', closeModal);
+  document.getElementById('modalCancel')?.addEventListener('click', closeModal);
+  document.getElementById('modalSave')?.addEventListener('click', saveModal);
+  document.getElementById('modalPrintFromDetail')?.addEventListener('click', ()=>{
+    printNota(state.uiFlags.modal.data);
+  });
+  document.getElementById('modalPdfFromDetail')?.addEventListener('click', ()=>{
+    downloadNotaPDF(state.uiFlags.modal.data);
+  });
+  document.getElementById('modalWaFromDetail')?.addEventListener('click', ()=>{
+    kirimNotaWA(state.uiFlags.modal.data);
+  });
+
+  // modal: perangkat baru terdeteksi
+  document.getElementById('deviceModalOverlay')?.addEventListener('click', (e)=>{ if(e.target.id==='deviceModalOverlay') dismissDeviceModal(); });
+  document.getElementById('deviceModalClose')?.addEventListener('click', dismissDeviceModal);
+  document.getElementById('deviceSkipBtn')?.addEventListener('click', dismissDeviceModal);
+  document.getElementById('deviceCloseBtn')?.addEventListener('click', dismissDeviceModal);
+  document.getElementById('deviceConnectBtn')?.addEventListener('click', ()=>{
+    const val = (document.getElementById('deviceClientId').value||'').trim();
+    if(!val){ toast('Isi Client ID Google Drive terlebih dahulu.', 'err'); return; }
+    gdriveConnect(val);
+  });
+
+  // modal: struk pembayaran setelah transaksi
+  document.getElementById('receiptModalOverlay')?.addEventListener('click', (e)=>{ if(e.target.id==='receiptModalOverlay') closeReceiptModal(); });
+  document.getElementById('receiptCetakBtn')?.addEventListener('click', ()=>{ if(state.uiFlags.receiptModalTrx) printNota(state.uiFlags.receiptModalTrx); });
+  document.getElementById('receiptWaBtn')?.addEventListener('click', ()=>{ if(state.uiFlags.receiptModalTrx) kirimNotaWA(state.uiFlags.receiptModalTrx); });
+  document.getElementById('receiptSelesaiBtn')?.addEventListener('click', closeReceiptModal);
+  document.getElementById('receiptKartuBtn')?.addEventListener('click', ()=>{
+    const trx = state.uiFlags.receiptModalTrx; if(!trx) return;
+    const d = new Date(trx.tanggal);
+    const taAwal = d.getMonth()>=6 ? d.getFullYear() : d.getFullYear()-1;
+    const semester = d.getMonth()>=6 ? 'Ganjil' : 'Genap';
+    closeReceiptModal();
+    openKartuModal(trx.santriId, taAwal, semester);
+  });
+
+  // modal: buku santri
+  document.getElementById('kartuModalOverlay')?.addEventListener('click', (e)=>{ if(e.target.id==='kartuModalOverlay') closeKartuModal(); });
+  document.getElementById('kartuModalClose')?.addEventListener('click', closeKartuModal);
+  document.getElementById('kartuSelesaiBtn')?.addEventListener('click', closeKartuModal);
+  document.getElementById('kartuTahunSelect')?.addEventListener('change', e=>{ if(state.uiFlags.kartuModal){ state.uiFlags.kartuModal.taAwal = Number(e.target.value); render(); } });
+  document.getElementById('kartuSemesterSelect')?.addEventListener('change', e=>{ if(state.uiFlags.kartuModal){ state.uiFlags.kartuModal.semester = e.target.value; render(); } });
+  document.getElementById('kartuCetakBtn')?.addEventListener('click', ()=>{
+    const k = state.uiFlags.kartuModal; if(k) printBukuSantri(k.santriId, k.taAwal, k.semester);
+  });
+  document.getElementById('kartuWaBtn')?.addEventListener('click', ()=>{
+    const k = state.uiFlags.kartuModal; if(k) kirimBukuSantriWA(k.santriId, k.taAwal, k.semester);
+  });
+
+  // modal: pilih bulan yang dibayar (pembayaran bulanan)
+  document.getElementById('bulanModalOverlay')?.addEventListener('click', (e)=>{ if(e.target.id==='bulanModalOverlay') closeBulanModal(); });
+  document.getElementById('bulanModalClose')?.addEventListener('click', closeBulanModal);
+  document.getElementById('bulanModalBatal')?.addEventListener('click', closeBulanModal);
+  document.getElementById('bulanYearPrev')?.addEventListener('click', ()=>{ if(state.uiFlags.bulanModal){ state.uiFlags.bulanModal.year -= 1; render(); } });
+  document.getElementById('bulanYearNext')?.addEventListener('click', ()=>{ if(state.uiFlags.bulanModal){ state.uiFlags.bulanModal.year += 1; render(); } });
+  document.querySelectorAll('[data-bulan-toggle]').forEach(t=>t.addEventListener('click', ()=>{
+    const bm = state.uiFlags.bulanModal; if(!bm) return;
+    const idx = Number(t.dataset.bulanToggle);
+    const pos = bm.selected.findIndex(b=>b.year===bm.year && b.idx===idx);
+    if(pos>=0) bm.selected.splice(pos,1);
+    else bm.selected.push({year:bm.year, idx});
+    render();
+  }));
+  document.getElementById('bulanModalTambah')?.addEventListener('click', ()=>{
+    const bm = state.uiFlags.bulanModal; if(!bm || !bm.selected.length) return;
+    const jp = state.jenisPembayaran.find(j=>j.id===bm.jenisId); if(!jp) return;
+    const cart = state.uiFlags.cart;
+    const existingIdx = cart.findIndex(i=>i.jenisId===jp.id);
+    const item = { jenisId: jp.id, nama: jp.nama, nominal: jp.nominal, qty: bm.selected.length, bulanTerpilih: bm.selected.map(b=>({...b})) };
+    if(existingIdx>=0) cart[existingIdx] = item; else cart.push(item);
+    state.uiFlags.bulanModal = null;
+    toast('Bulan pembayaran ditambahkan ke keranjang.', 'ok');
+    render();
+  });
+
+  attachRouteEvents();
+}
+
+function attachRouteEvents(){
+  if(state.route==='dashboard'){
+    document.getElementById('btnUpdateFromDrive')?.addEventListener('click', gdriveUpdateFromDashboard);
+  }
+
+  if(state.route==='kasir'){
+    document.getElementById('btnKasirUpdate')?.addEventListener('click', gdriveUpdateFromDashboard);
+    document.getElementById('btnLastTrxCetak')?.addEventListener('click', ()=>{ if(state.uiFlags.lastTrx) printNota(state.uiFlags.lastTrx); });
+    document.getElementById('btnLastTrxPdf')?.addEventListener('click', ()=>{ if(state.uiFlags.lastTrx) downloadNotaPDF(state.uiFlags.lastTrx); });
+    document.getElementById('btnLastTrxWa')?.addEventListener('click', ()=>{ if(state.uiFlags.lastTrx) kirimNotaWA(state.uiFlags.lastTrx); });
+    document.getElementById('kasirSearchSantri')?.addEventListener('input', e=>{ state.uiFlags.kasirSearch = e.target.value; render(); });
+    document.getElementById('kasirSearchJP')?.addEventListener('input', e=>{ state.uiFlags.jpKasirSearch = e.target.value; render(); });
+    document.getElementById('kasirFilterJPSemester')?.addEventListener('change', e=>{ state.uiFlags.jpKasirSemester = e.target.value; render(); });
+    document.getElementById('kasirFilterJPKategori')?.addEventListener('change', e=>{ state.uiFlags.jpKasirKategori = e.target.value; render(); });
+    document.getElementById('kasirSelectSantri')?.addEventListener('change', e=>{ state.uiFlags.kasirSantriId = e.target.value; render(); });
+    document.querySelectorAll('[data-add-cart]').forEach(t=>t.addEventListener('click', ()=>{
+      const jp = state.jenisPembayaran.find(j=>j.id===t.dataset.addCart);
+      if(!jp) return;
+      const existing = state.uiFlags.cart.find(i=>i.jenisId===jp.id);
+      if(existing) existing.qty += 1;
+      else state.uiFlags.cart.push({jenisId:jp.id, nama:jp.nama, nominal:jp.nominal, qty:1});
+      render();
+    }));
+    document.querySelectorAll('[data-pilih-bulan]').forEach(t=>t.addEventListener('click', ()=>{
+      openBulanModal(t.dataset.pilihBulan, t.dataset.semFilter);
+    }));
+    document.querySelectorAll('[data-edit-bulan-cart]').forEach(b=>b.addEventListener('click', ()=>{
+      openBulanModal(b.dataset.editBulanCart, state.uiFlags.jpKasirSemester);
+    }));
+    document.querySelectorAll('[data-cart-inc]').forEach(b=>b.addEventListener('click', ()=>{
+      const it = state.uiFlags.cart.find(i=>i.jenisId===b.dataset.cartInc); if(it) it.qty+=1; render();
+    }));
+    document.querySelectorAll('[data-cart-dec]').forEach(b=>b.addEventListener('click', ()=>{
+      const it = state.uiFlags.cart.find(i=>i.jenisId===b.dataset.cartDec);
+      if(it){ it.qty-=1; if(it.qty<=0) state.uiFlags.cart = state.uiFlags.cart.filter(x=>x.jenisId!==it.jenisId); }
+      render();
+    }));
+    document.querySelectorAll('[data-cart-del]').forEach(b=>b.addEventListener('click', ()=>{
+      state.uiFlags.cart = state.uiFlags.cart.filter(i=>i.jenisId!==b.dataset.cartDel); render();
+    }));
+    document.getElementById('btnProsesPembayaran')?.addEventListener('click', ()=>{
+      const santriId = state.uiFlags.kasirSantriId;
+      const cart = state.uiFlags.cart;
+      if(!santriId || !cart.length) return;
+      const metode = document.getElementById('kasirMetode').value;
+      const catatan = document.getElementById('kasirCatatan').value.trim();
+      const items = cart.map(i=>({jenisId:i.jenisId, nama:i.nama, nominal:i.nominal, qty:i.qty, subtotal:i.nominal*i.qty, ...(Array.isArray(i.bulanTerpilih)&&i.bulanTerpilih.length ? {bulanTerpilih:i.bulanTerpilih} : {})}));
+      const total = items.reduce((s,i)=>s+i.subtotal,0);
+      const tanggalTrx = todayISO();
+      const trx = {
+        id: uid(),
+        noNota: generateNoNota(tanggalTrx),
+        tanggal: tanggalTrx,
+        santriId, items, total, metode, catatan,
+        kasirNama: state.auth.nama,
+      };
+      state.transaksi.push(trx);
+      dbSet('transaksi', state.transaksi);
+      state.uiFlags.cart = [];
+      state.uiFlags.kasirSantriId = '';
+      state.uiFlags.lastTrx = trx;
+      state.uiFlags.receiptModalTrx = trx;
+      toast('Pembayaran berhasil dicatat.', 'ok');
+      render();
+      if(state.gdrive && state.gdrive.connected) gdriveAutoUpload();
+    });
+  }
+
+  if(state.route==='santri'){
+    document.getElementById('searchSantri')?.addEventListener('input', e=>{ state.uiFlags.santriSearch = e.target.value; render(); });
+    document.getElementById('filterKelasSantri')?.addEventListener('change', e=>{ state.uiFlags.santriFilterKelas = e.target.value; render(); });
+    document.getElementById('filterKategoriSantri')?.addEventListener('change', e=>{ state.uiFlags.santriFilterKategori = e.target.value; render(); });
+    document.getElementById('btnAddSantri')?.addEventListener('click', ()=>openModal('santri', null));
+    document.getElementById('btnSyncSantri')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.querySelectorAll('[data-edit-santri]').forEach(b=>b.addEventListener('click', ()=>{
+      openModal('santri', state.santri.find(s=>s.id===b.dataset.editSantri));
+    }));
+    document.querySelectorAll('[data-kartu-santri]').forEach(b=>b.addEventListener('click', ()=>{
+      openKartuModal(b.dataset.kartuSantri);
+    }));
+    document.querySelectorAll('[data-del-santri]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus data santri ini? Riwayat pembayaran terkait tidak akan terhapus.')){
+        state.santri = state.santri.filter(s=>s.id!==b.dataset.delSantri);
+        dbSet('santri', state.santri); toast('Santri dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='guru'){
+    document.getElementById('searchGuru')?.addEventListener('input', e=>{ state.uiFlags.guruSearch = e.target.value; render(); });
+    document.getElementById('btnAddGuru')?.addEventListener('click', ()=>openModal('guru', null));
+    document.getElementById('btnSyncGuru')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.querySelectorAll('[data-edit-guru]').forEach(b=>b.addEventListener('click', ()=>{
+      openModal('guru', state.guru.find(g=>g.id===b.dataset.editGuru));
+    }));
+    document.querySelectorAll('[data-riwayat-guru]').forEach(b=>b.addEventListener('click', ()=>{
+      openModal('riwayatGaji', state.guru.find(g=>g.id===b.dataset.riwayatGuru));
+    }));
+    document.querySelectorAll('[data-del-guru]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus data guru ini? Riwayat pengeluaran gaji sebelumnya tidak akan terhapus.')){
+        state.guru = state.guru.filter(g=>g.id!==b.dataset.delGuru);
+        dbSet('guru', state.guru); toast('Data guru dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='jenisPembayaran'){
+    document.getElementById('searchJP')?.addEventListener('input', e=>{ state.uiFlags.jpSearch = e.target.value; render(); });
+    document.getElementById('btnAddJP')?.addEventListener('click', ()=>openModal('jenis', null));
+    document.getElementById('btnSyncJP')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.querySelectorAll('[data-edit-jp]').forEach(b=>b.addEventListener('click', ()=>{
+      openModal('jenis', state.jenisPembayaran.find(j=>j.id===b.dataset.editJp));
+    }));
+    document.querySelectorAll('[data-del-jp]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus jenis pembayaran ini?')){
+        state.jenisPembayaran = state.jenisPembayaran.filter(j=>j.id!==b.dataset.delJp);
+        dbSet('jenisPembayaran', state.jenisPembayaran); toast('Jenis pembayaran dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='riwayat'){
+    const applyFilter = ()=>{
+      state.uiFlags.riwayatFilter = {
+        q: document.getElementById('filterRwQ')?.value||'',
+        dari: document.getElementById('filterRwDari')?.value||'',
+        sampai: document.getElementById('filterRwSampai')?.value||'',
+        metode: document.getElementById('filterRwMetode')?.value||'',
+      };
+      render();
+    };
+    document.getElementById('filterRwQ')?.addEventListener('input', applyFilter);
+    document.getElementById('filterRwDari')?.addEventListener('change', applyFilter);
+    document.getElementById('filterRwSampai')?.addEventListener('change', applyFilter);
+    document.getElementById('filterRwMetode')?.addEventListener('change', applyFilter);
+    document.querySelectorAll('[data-view-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      const t = state.transaksi.find(x=>x.id===b.dataset.viewTrx); if(t) openModal('trxDetail', t);
+    }));
+    document.querySelectorAll('[data-print-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      const t = state.transaksi.find(x=>x.id===b.dataset.printTrx); if(t) printNota(t);
+    }));
+    document.querySelectorAll('[data-pdf-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      const t = state.transaksi.find(x=>x.id===b.dataset.pdfTrx); if(t) downloadNotaPDF(t);
+    }));
+    document.querySelectorAll('[data-wa-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      const t = state.transaksi.find(x=>x.id===b.dataset.waTrx); if(t) kirimNotaWA(t);
+    }));
+    document.querySelectorAll('[data-kartu-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      const t = state.transaksi.find(x=>x.id===b.dataset.kartuTrx); if(!t) return;
+      const d = new Date(t.tanggal);
+      const taAwal = d.getMonth()>=6 ? d.getFullYear() : d.getFullYear()-1;
+      const semester = d.getMonth()>=6 ? 'Ganjil' : 'Genap';
+      openKartuModal(t.santriId, taAwal, semester);
+    }));
+    document.getElementById('btnSyncRiwayat')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.querySelectorAll('[data-del-trx]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus transaksi pembayaran ini? Tindakan tidak dapat dibatalkan.')){
+        state.transaksi = state.transaksi.filter(t=>t.id!==b.dataset.delTrx);
+        dbSet('transaksi', state.transaksi); toast('Transaksi dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='laporan'){
+    document.querySelectorAll('[data-laporan-period]').forEach(b=>b.addEventListener('click', ()=>{
+      state.uiFlags.laporanPeriod = b.dataset.laporanPeriod; render();
+    }));
+    document.getElementById('btnExportCSV')?.addEventListener('click', downloadCSV);
+    document.getElementById('btnExportExcelLedger')?.addEventListener('click', downloadLaporanExcel);
+    document.getElementById('btnBukaKartuLaporan')?.addEventListener('click', ()=>{
+      const santriId = document.getElementById('laporanKartuSantri').value;
+      if(!santriId){ toast('Pilih santri terlebih dahulu.', 'err'); return; }
+      openKartuModal(santriId);
+    });
+    document.getElementById('peKategori')?.addEventListener('change', e=>{
+      state.uiFlags.pengeluaranForm.kategori = e.target.value;
+      state.uiFlags.pengeluaranForm.kategoriLain = document.getElementById('peKategoriLain')?.value || state.uiFlags.pengeluaranForm.kategoriLain;
+      state.uiFlags.pengeluaranForm.tanggal = document.getElementById('peTanggal')?.value || state.uiFlags.pengeluaranForm.tanggal;
+      state.uiFlags.pengeluaranForm.keterangan = document.getElementById('peKeterangan')?.value || state.uiFlags.pengeluaranForm.keterangan;
+      state.uiFlags.pengeluaranForm.nominal = document.getElementById('peNominal')?.value || state.uiFlags.pengeluaranForm.nominal;
+      if(state.uiFlags.pengeluaranForm.kategori!=='Gaji Guru') state.uiFlags.pengeluaranForm.guruId = '';
+      render();
+    });
+    document.getElementById('peGuru')?.addEventListener('change', e=>{
+      const pf = state.uiFlags.pengeluaranForm;
+      pf.guruId = e.target.value;
+      const g = state.guru.find(x=>x.id===pf.guruId);
+      if(g){
+        pf.nominal = g.gajiPokok || pf.nominal;
+        const bulanNama = new Date(pf.tanggal || localDateStr()).toLocaleDateString('id-ID', {month:'long', year:'numeric'});
+        pf.keterangan = `Gaji ${g.nama} - ${bulanNama}`;
+      }
+      render();
+    });
+    document.getElementById('btnTambahPengeluaran')?.addEventListener('click', ()=>{
+      const pf = state.uiFlags.pengeluaranForm;
+      const kategoriLainEl = document.getElementById('peKategoriLain');
+      const kategori = pf.kategori==='Lainnya' ? (kategoriLainEl?.value||'').trim() : pf.kategori;
+      const tanggal = document.getElementById('peTanggal')?.value || localDateStr();
+      const keterangan = (document.getElementById('peKeterangan')?.value||'').trim();
+      const nominal = Number(document.getElementById('peNominal')?.value||0);
+      const guruId = (kategori==='Gaji Guru') ? (document.getElementById('peGuru')?.value||'') : '';
+      if(!kategori){ toast('Isi nama kategori pengeluaran terlebih dahulu.', 'err'); return; }
+      if(!nominal || nominal<=0){ toast('Nominal pengeluaran harus lebih dari 0.', 'err'); return; }
+      if(kategori==='Gaji Guru' && !guruId){ toast('Pilih nama guru terlebih dahulu.', 'err'); return; }
+      state.pengeluaran.push({ id:uid(), tanggal, kategori, keterangan, nominal, guruId, dicatatOleh: state.auth?.nama || '' });
+      dbSet('pengeluaran', state.pengeluaran);
+      state.uiFlags.pengeluaranForm = { kategori:'Gaji Guru', kategoriLain:'', guruId:'', tanggal:'', keterangan:'', nominal:'' };
+      toast('Pengeluaran berhasil dicatat.', 'ok');
+      render();
+    });
+    document.querySelectorAll('[data-wa-pengeluaran]').forEach(b=>b.addEventListener('click', ()=>{
+      kirimNotaGajiWA(b.dataset.waPengeluaran);
+    }));
+    document.querySelectorAll('[data-del-pengeluaran]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus catatan pengeluaran ini? Tindakan tidak dapat dibatalkan.')){
+        state.pengeluaran = state.pengeluaran.filter(p=>p.id!==b.dataset.delPengeluaran);
+        dbSet('pengeluaran', state.pengeluaran); toast('Pengeluaran dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='pengguna'){
+    document.getElementById('btnAddUser')?.addEventListener('click', ()=>openModal('user', null));
+    document.getElementById('btnSyncUser')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.querySelectorAll('[data-edit-user]').forEach(b=>b.addEventListener('click', ()=>{
+      openModal('user', state.users.find(u=>u.id===b.dataset.editUser));
+    }));
+    document.querySelectorAll('[data-del-user]').forEach(b=>b.addEventListener('click', ()=>{
+      if(confirm('Hapus pengguna ini?')){
+        state.users = state.users.filter(u=>u.id!==b.dataset.delUser);
+        dbSet('users', state.users); toast('Pengguna dihapus.', 'ok'); render();
+      }
+    }));
+  }
+
+  if(state.route==='pengaturan'){
+    document.getElementById('btnGdriveConnect')?.addEventListener('click', ()=>gdriveConnect());
+    document.getElementById('btnUploadLogo')?.addEventListener('click', ()=>document.getElementById('fileLogoInput')?.click());
+    document.getElementById('fileLogoInput')?.addEventListener('change', e=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      if(!file.type.startsWith('image/')){ toast('File harus berupa gambar.', 'err'); e.target.value=''; return; }
+      if(file.size > 1024*1024){ toast('Ukuran logo maksimal 1 MB.', 'err'); e.target.value=''; return; }
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        state.settings.logoDataUrl = ev.target.result;
+        dbSet('settings', state.settings);
+        toast('Logo berhasil disimpan.', 'ok');
+        render();
+      };
+      reader.onerror = ()=> toast('Gagal membaca file logo.', 'err');
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+    document.getElementById('btnHapusLogo')?.addEventListener('click', ()=>{
+      if(!confirm('Hapus logo aplikasi? Tampilan akan kembali memakai teks nama aplikasi.')) return;
+      state.settings.logoDataUrl = '';
+      dbSet('settings', state.settings);
+      toast('Logo dihapus.', 'ok');
+      render();
+    });
+    document.getElementById('btnSaveBranding')?.addEventListener('click', ()=>{
+      state.settings.appNamePrefix = document.getElementById('stAppPrefix').value.trim() || 'Santri';
+      state.settings.appNameAccent = document.getElementById('stAppAccent').value.trim() || 'Pay';
+      state.settings.appTagline = document.getElementById('stTagline').value.trim();
+      dbSet('settings', state.settings);
+      toast('Tampilan aplikasi disimpan.', 'ok');
+      render();
+    });
+    document.getElementById('btnGdriveUpload')?.addEventListener('click', ()=>gdriveUpload(false));
+    document.getElementById('btnGdriveDisconnect')?.addEventListener('click', gdriveDisconnect);
+    document.getElementById('btnGdriveDownload')?.addEventListener('click', ()=>{
+      if(!confirm('Mengambil data dari Google Drive akan menimpa data lokal saat ini di perangkat ini. Lanjutkan?')) return;
+      gdriveEnsureToken(()=> gdriveDownloadAndRestore());
+    });
+    document.getElementById('btnSaveProfil')?.addEventListener('click', ()=>{
+      state.settings.namaLembaga = document.getElementById('stNamaLembaga').value.trim();
+      state.settings.alamat = document.getElementById('stAlamat').value.trim();
+      state.settings.telp = document.getElementById('stTelp').value.trim();
+      dbSet('settings', state.settings);
+      toast('Profil lembaga disimpan.', 'ok'); render();
+    });
+    document.querySelectorAll('[data-tema]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        state.settings.tema = btn.dataset.tema;
+        dbSet('settings', state.settings);
+        applyTema(state.settings.tema);
+        toast('Tema berhasil diganti.', 'ok');
+        render();
+      });
+    });
+    document.getElementById('btnBackupData')?.addEventListener('click', downloadBackup);
+    document.getElementById('btnRestoreData')?.addEventListener('click', ()=>document.getElementById('fileRestoreInput')?.click());
+    document.getElementById('fileRestoreInput')?.addEventListener('change', e=>{
+      const file = e.target.files && e.target.files[0];
+      if(file) restoreFromFile(file);
+      e.target.value = '';
+    });
+    document.getElementById('btnCheckLocalStorage')?.addEventListener('click', ()=>{
+      const statusEl = document.getElementById('localStorageStatus');
+      if(!statusEl) return;
+      statusEl.style.display = 'block';
+      try{
+        const keys = ['users','santri','guru','jenisPembayaran','transaksi','pengeluaran','settings'];
+        let html = '<strong>Status penyimpanan lokal:</strong><br>';
+        let totalSize = 0;
+        keys.forEach(k=>{
+          const v = localStorage.getItem(LS_PREFIX+k);
+          const size = v ? Math.round(v.length/1024) : 0;
+          totalSize += size;
+          html += `\u2022 <code>${k}</code>: ${v ? `\u2705 Ada (\u00B1${size} KB)` : '\u274C Tidak ada'}<br>`;
+        });
+        html += `<br>Total ukuran: \u00B1${totalSize} KB dari batas ~5 MB`;
+        statusEl.innerHTML = html;
+      }catch(e){ statusEl.textContent = 'Tidak dapat membaca penyimpanan lokal: '+e.message; }
+    });
+    document.getElementById('btnClearLocalStorage')?.addEventListener('click', ()=>{
+      if(!confirm('Ini akan menghapus semua data pada perangkat ini. Lanjutkan?')) return;
+      ['users','santri','guru','jenisPembayaran','transaksi','pengeluaran','settings'].forEach(k=> localStorage.removeItem(LS_PREFIX+k));
+      toast('Data lokal berhasil dihapus. Memuat ulang...', 'ok');
+      setTimeout(()=>location.reload(), 800);
+    });
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
